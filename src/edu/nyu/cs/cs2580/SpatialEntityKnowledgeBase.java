@@ -93,22 +93,15 @@ public class SpatialEntityKnowledgeBase implements Serializable {
 
 
     public void addNeighbors(HashMap<Integer, LinkedList<Integer>> nearestNeighbors) {
-
         for (Map.Entry<Integer, LinkedList<Integer>> entry : nearestNeighbors.entrySet()) {
             Integer entityId = entry.getKey();
             LinkedList<Integer> neighborIds = entry.getValue();
-
             GeoEntity entity = _entity_map.get(entityId);
-
             for (Integer neighborId : neighborIds) {
                 GeoEntity neighbor = _entity_map.get(neighborId);
                 entity.nearby.add(neighbor);
             }
-
         }
-
-
-
     }
 
 

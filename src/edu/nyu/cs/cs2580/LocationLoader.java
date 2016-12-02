@@ -17,10 +17,10 @@ public class LocationLoader {
         SpatialEntityKnowledgeBase knowledgeBase = new SpatialEntityKnowledgeBase();
         HashMap<Integer, LinkedList<Integer>> nearestNeighbors = new HashMap<>();
 
-        String csvFileCities = "/Users/stephen/Desktop/search_engine_proj/cities1000_usa_3857.csv";
-        String csvFileCounties = "/Users/stephen/Desktop/search_engine_proj/admin2_data.csv";
-        String csvFileStates = "/Users/stephen/Desktop/search_engine_proj/admin1_data.csv";
-        String csvFileRelations = "/Users/stephen/Desktop/search_engine_proj/nearest_neighbors_50km.csv";
+        String csvFileCities = "data/geospatial/cities1000_usa_3857.csv";
+        String csvFileCounties = "data/geospatial/admin2_data.csv";
+        String csvFileStates = "data/geospatial/admin1_data.csv";
+        String csvFileRelations = "data/geospatial/nearest_neighbors_50km.csv";
 
         String line = "";
         String csvSplitter = ",";
@@ -152,7 +152,6 @@ public class LocationLoader {
         }
 
         knowledgeBase.addNeighbors(nearestNeighbors);
-
         System.out.println("All done!");
 
 
