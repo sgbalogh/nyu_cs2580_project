@@ -52,5 +52,28 @@ public class GeoEntity {
         return this.id;
     }
 
+    public String getName() { return this.primaryName; }
+
+    public String[] getNearbyNames(int max) {
+        if (this.nearby.size() > 0) {
+            int stop_int = (max > this.nearby.size()) ? this.nearby.size() : max;
+            String[] toReturn = new String[stop_int];
+            for (int i = 0; i < stop_int; i++) {
+                toReturn[i] = this.nearby.get(i).getName();
+            }
+            return toReturn;
+        }
+        return null;
+    }
+
+    public String[] getChildrenNames(int max) {
+        if (this.children.size() > 0) {
+            int stop_int = (max > this.nearby.size()) ? this.nearby.size() : max;
+            String[] toReturn = new String[stop_int];
+
+        }
+        return null;
+    }
+
 
 }

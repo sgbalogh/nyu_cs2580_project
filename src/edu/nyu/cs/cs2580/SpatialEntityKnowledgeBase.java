@@ -2,6 +2,7 @@ package edu.nyu.cs.cs2580;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 /**
@@ -88,6 +89,26 @@ public class SpatialEntityKnowledgeBase implements Serializable {
 
         }
         return true;
+    }
+
+
+    public void addNeighbors(HashMap<Integer, LinkedList<Integer>> nearestNeighbors) {
+
+        for (Map.Entry<Integer, LinkedList<Integer>> entry : nearestNeighbors.entrySet()) {
+            Integer entityId = entry.getKey();
+            LinkedList<Integer> neighborIds = entry.getValue();
+
+            GeoEntity entity = _entity_map.get(entityId);
+
+            for (Integer neighborId : neighborIds) {
+                GeoEntity neighbor = _entity_map.get(neighborId);
+                entity.nearby.add(neighbor);
+            }
+
+        }
+
+
+
     }
 
 

@@ -3,6 +3,8 @@ package edu.nyu.cs.cs2580;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.LinkedList;
 
 /**
  * Created by stephen on 12/2/16.
@@ -13,10 +15,12 @@ public class LocationLoader {
     public static void loadLocations() {
 
         SpatialEntityKnowledgeBase knowledgeBase = new SpatialEntityKnowledgeBase();
+        HashMap<Integer, LinkedList<Integer>> nearestNeighbors = new HashMap<>();
 
         String csvFileCities = "/Users/stephen/Desktop/search_engine_proj/cities1000_usa_3857.csv";
         String csvFileCounties = "/Users/stephen/Desktop/search_engine_proj/admin2_data.csv";
         String csvFileStates = "/Users/stephen/Desktop/search_engine_proj/admin1_data.csv";
+        String csvFileRelations = "/Users/stephen/Desktop/search_engine_proj/nearest_neighbors_50km.csv";
 
         String line = "";
         String csvSplitter = ",";
@@ -121,6 +125,33 @@ public class LocationLoader {
 
         System.out.println("Connecting parents and children...");
         knowledgeBase.constructTree();
+
+        System.out.println("Reading relations...");
+
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFileRelations))) {
+            Integer line_num = 0;
+            while ((line = br.readLine()) != null) {
+
+                line_num++;
+                if (!line.toString().equals("")) {
+                    String[] parsedLine = line.split(csvSplitter);
+                    String[] parsedNeighbors = parsedLine[1].split(":");
+                    Integer entity = Integer.parseInt(parsedLine[0]);
+                    LinkedList<Integer> neighbors = new LinkedList<>();
+                    for (String string : parsedNeighbors) {
+                        neighbors.add(Integer.parseInt(string));
+                    }
+                    if (entity != null) {
+                        nearestNeighbors.put(entity, neighbors);
+                    }
+                    //System.out.println(line_num);
+                }
+            }
+
+        } catch (IOException e) {
+        }
+
+        knowledgeBase.addNeighbors(nearestNeighbors);
 
         System.out.println("All done!");
 
