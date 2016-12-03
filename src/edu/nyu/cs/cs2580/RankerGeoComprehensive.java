@@ -14,6 +14,8 @@ import java.util.Vector;
             // During scoring candidates, vote by majority frequency, winner takes all
         // Call GeoEntity.getStateName() to expand
     // SUPPORT BOOLEAN
+    // Needs to be aware of whether or not expansion has already been performed by checking
+        // to see if there exists a true value in QBG (read QBG._expanded)
 public class RankerGeoComprehensive extends Ranker {
 
 

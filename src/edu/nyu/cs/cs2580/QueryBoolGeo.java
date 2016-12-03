@@ -10,13 +10,15 @@ public class QueryBoolGeo extends Query{
     public List<String> _input_strings;
     private List<GeoEntity> _candidate_geo_entities;
     private List<GeoEntity> _expanded_geo_entities;
+    public boolean _expanded;
 
-    public QueryBoolGeo(String inputString, List<String> inputStrings, List<GeoEntity> inputGeoEntities) {
+    public QueryBoolGeo(String inputString, List<String> inputStrings, List<GeoEntity> inputGeoEntities, boolean expanded) {
         super(inputString);
         //DO NOT PROCESS INPUT STRING
 
         _input_strings = inputStrings;
         _candidate_geo_entities = inputGeoEntities;
+        _expanded = expanded;
 
     }
 

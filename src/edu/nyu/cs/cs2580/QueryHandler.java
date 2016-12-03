@@ -19,6 +19,9 @@ import edu.nyu.cs.cs2580.SearchEngine.Options;
  * @author congyu
  * @author fdiaz
  */
+
+//TODO: DEAL WITH CGI ARGUMENT that signifies whether or not expansion has already been performed
+  // e.g. ...&expanded=true
 class QueryHandler implements HttpHandler {
 
   /**
