@@ -177,10 +177,6 @@ public class SearchEngine {
     analyzer.prepare();
     analyzer.compute();
 
-    LogMiner miner = LogMiner.Factory.getLogMinerByOption(SearchEngine.OPTIONS);
-    Check(miner != null,
-        "Miner " + SearchEngine.OPTIONS._logMinerType + " not found!");
-    miner.compute();
     return;
   }
 
@@ -203,10 +199,12 @@ public class SearchEngine {
   private static void startServing() throws IOException, ClassNotFoundException {
     // Create the handler and its associated indexer.
     Indexer indexer = Indexer.Factory.getIndexerByOption(SearchEngine.OPTIONS);
+    SpatialEntityKnowledgeBase gkb = new SpatialEntityKnowledgeBase();
+    gkb.load();
     Check(indexer != null,
         "Indexer " + SearchEngine.OPTIONS._indexerType + " not found!");
     indexer.loadIndex();
-    QueryHandler handler = new QueryHandler(SearchEngine.OPTIONS, indexer);
+    QueryHandler handler = new QueryHandler(SearchEngine.OPTIONS, indexer, gkb);
 
     // Establish the serving environment
     InetSocketAddress addr = new InetSocketAddress(SearchEngine.PORT);

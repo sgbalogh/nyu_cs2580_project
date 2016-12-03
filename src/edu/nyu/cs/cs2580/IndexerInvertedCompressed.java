@@ -98,9 +98,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
   	  
   	  _totalTermFrequency = 0L;
   	  
-  	  System.out.println("Loading pagerank and numviews scores...");
-  	  LogMinerNumviews logminer = (LogMinerNumviews) this._logMiner;
-  	  Vector<Integer> _doc_numviews = (Vector<Integer>) logminer.load();
+  	  System.out.println("Loading pagerank scores...");
   	  
   	  CorpusAnalyzerPagerank pageranker = (CorpusAnalyzerPagerank) this._corpusAnalyzer;
   	  Vector<Double> _doc_pagerank = (Vector<Double>) pageranker.load();
@@ -149,7 +147,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
   	        	temp_totalTermFrequency += docWords.length;
   	        	
   	        	_docs.add(buildDocument(fileEntry, doc_id, docWords.length,
-  	        			_doc_pagerank.get(docInCorpus), _doc_numviews.get(docInCorpus) ));
+  	        			_doc_pagerank.get(docInCorpus), 0 ));
   	        	docInCorpus++;
   	        	
   	        	docCount = new HashMap<>();

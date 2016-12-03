@@ -12,6 +12,7 @@ import java.util.Vector;
         // 1) not enough results
         // 2) reasonably think its a place
             // During scoring candidates, vote by majority frequency, winner takes all
+        // Call GeoEntity.getStateName() to expand
     // SUPPORT BOOLEAN
 public class RankerGeoComprehensive extends Ranker {
 
@@ -33,6 +34,8 @@ public class RankerGeoComprehensive extends Ranker {
         GeoEntity toExpand = query.get_candidate_geo_entity(index_to_expand);
         query.set_expanded_geo_entities(toExpand.getNearbyCities(max_expand_locations));
     }
+
+
 
 
 

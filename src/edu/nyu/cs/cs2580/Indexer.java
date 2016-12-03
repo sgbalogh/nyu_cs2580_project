@@ -28,7 +28,6 @@ public abstract class Indexer {
 
   // CorpusAnalyzer and LogMinder that support the indexing process.
   protected CorpusAnalyzer _corpusAnalyzer = null;
-  protected LogMiner _logMiner = null;
 
   // In-memory data structures populated once for each server. Those fields
   // are populated during index loading time and must not be modified during
@@ -44,7 +43,6 @@ public abstract class Indexer {
   public Indexer(Options options) {
     _options = options;
     _corpusAnalyzer = CorpusAnalyzer.Factory.getCorpusAnalyzerByOption(options);
-    _logMiner = LogMiner.Factory.getLogMinerByOption(options);
   }
 
   // APIs for document retrieval.

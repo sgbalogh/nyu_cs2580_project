@@ -109,5 +109,12 @@ public class SpatialEntityKnowledgeBase implements Serializable {
     }
 
 
+    //TODO: implement this
+    public void load() {
+    }
 
+    //TODO
+    public void save() {
+
+    }
 }
