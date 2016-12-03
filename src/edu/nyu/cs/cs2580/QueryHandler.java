@@ -101,9 +101,13 @@ class QueryHandler implements HttpHandler {
   // we are not worried about thread-safety here, the Indexer class must take
   // care of thread-safety.
   private Indexer _indexer;
+  private LocationParser _location_parser;
 
-  public QueryHandler(Options options, Indexer indexer) {
+  public QueryHandler(Options options, Indexer indexer, SpatialEntityKnowledgeBase gkb) {
     _indexer = indexer;
+    _location_parser = new LocationParser(indexer, gkb);
+    // Create LocationParser here, feed it a knowledge base reference
+    // GKB created (loaded from disk) in SearchEngine
   }
 
   private void respondWithMsg(HttpExchange exchange, final String message)
@@ -147,6 +151,11 @@ class QueryHandler implements HttpHandler {
     responseBody.close();
   }
 
+  //TODO: create map from data stored in GeoEntities (within QBG object)
+  private void constructMapWidget() {
+
+  }
+
 
   private void constructTextOutput(
           final Vector<ScoredDocument> docs, StringBuffer response) {
@@ -172,17 +181,7 @@ class QueryHandler implements HttpHandler {
   }
 
   public void constructHtmlOutput(final Vector<ScoredDocument> docs, StringBuffer response) {
-    response.append("<html><head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com" +
-            "/bootstrap/3.3.7/css/bootstrap.min.css\" integrity=\"sha384-BVYiiSIFeK1dGmJRAkycuHAH" +
-            "Rg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u\" crossorigin=\"anonymous\"></head><body>" +
-            "<div class=\"container\"><table class=\"table table-striped\"><thead><tr>" +
-            "<th>Document ID</th><th>Title</th><th>Score</th><th>Views</th><th>PageRank</th></tr></thead><tbody>");
-    for (ScoredDocument doc : docs) {
-      response.append(response.length() > 0 ? "\n" : "");
-      response.append(doc.asHtmlResult());
-    }
-    response.append(response.length() > 0 ? "\n" : "No result returned!");
-    response.append("</tbody></table></div></body></html>");
+
   }
 
   public void handle(HttpExchange exchange) throws IOException {
@@ -223,10 +222,18 @@ class QueryHandler implements HttpHandler {
       }
 
       // Processing the query.
+
+      //===============================================
+      // USE LOCATION PARSER
+      // Feed it a string of the entire user-issued query
+      //===============================================
       Query processedQuery = new QueryPhrase(cgiArgs._query);
       processedQuery.processQuery();
 
+
       // Ranking.
+      //TODO: implement this
+      // LIST OF GEOENTITIES IS WITHIN QBG
       Vector<ScoredDocument> scoredDocs =
               ranker.runQuery(processedQuery, cgiArgs._numResults);
 

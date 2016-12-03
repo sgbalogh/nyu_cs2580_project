@@ -1,9 +1,7 @@
 package edu.nyu.cs.cs2580;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by stephen on 12/2/16.
@@ -35,6 +33,12 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         } else if (toAdd.type.equals("STATE")) {
             _us_state_map.put(toAdd.admin1Code, toAdd);
         }
+    }
+
+    //TODO: implement this
+    public List<GeoEntity> getCandidates(String term) {
+        List<GeoEntity> candidates = new ArrayList<>();
+        return candidates;
     }
 
     public boolean constructTree() {

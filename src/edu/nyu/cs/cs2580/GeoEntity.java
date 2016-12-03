@@ -1,6 +1,7 @@
 package edu.nyu.cs.cs2580;
 
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Created by stephen on 12/2/16.
@@ -59,6 +60,23 @@ public class GeoEntity {
             return this.parent.getName();
         }
         return "";
+    }
+
+    //TODO: implement this
+    public List<GeoEntity> getNearbyCities(int max) {
+
+        return null;
+    }
+
+    //TODO: implement this
+    public String getStateName() {
+
+        return null;
+    }
+
+    //TODO: implement this
+    public String getCountyName() {
+        return null;
     }
 
     public String[] getNearbyCityNames(int max) {
