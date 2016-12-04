@@ -15,7 +15,7 @@ public class LocationParser {
     }
 
     public QueryBoolGeo parseQuery(String inputString) {
-        QueryBoolGeo toReturn = new QueryBoolGeo(inputString, null, null);
+        QueryBoolGeo toReturn = new QueryBoolGeo(inputString, null, null, false);
         return toReturn;
     }
 
