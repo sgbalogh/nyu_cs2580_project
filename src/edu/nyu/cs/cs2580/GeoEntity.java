@@ -102,7 +102,7 @@ public class GeoEntity implements Serializable {
                     .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
                     .append(this.longitude).append(", ").append(this.latitude).append("]}")
                     .append(", \"properties\": { \"name\": \"").append(this.getName())
-                    .append("\", \"population\": ").append(this.population).append("}}");
+                    .append("\", \"type\": \"primary\", \"population\": ").append(this.population).append("}}");
             for (int i = 0; i < stop_int; i++) {
                 GeoEntity nearby = this.nearby.get(i);
                 json.append(",{ \"type\": \"Feature\", \"id\": \"")
@@ -110,7 +110,7 @@ public class GeoEntity implements Serializable {
                         .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
                         .append(nearby.longitude).append(", ").append(nearby.latitude).append("]}")
                         .append(", \"properties\": { \"name\": \"").append(nearby.getName())
-                        .append("\", \"population\": ").append(nearby.population).append("}}");
+                        .append("\", \"type\": \"expanded\", \"population\": ").append(nearby.population).append("}}");
             }
             json.append("]}");
             return json.toString();

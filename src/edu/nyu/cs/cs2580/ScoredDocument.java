@@ -33,7 +33,16 @@ class ScoredDocument implements Comparable<ScoredDocument> {
    * @CS2580: Student should implement {@code asHtmlResult} for final project.
    */
   public String asHtmlResult() {
-    return "";
+    StringBuilder buf = new StringBuilder();
+    buf.append("<tr>");
+    //buf.append("<td>").append(_query).append("</td>");
+    buf.append("<td><code>").append(_doc._docid).append("</code></td>");
+    buf.append("<td><a href=\"").append(_doc.getUrl()).append("\">").append(_doc.getTitle()).append("</a></td>");
+    buf.append("<td>").append(_score).append("</td>");
+    buf.append("<td>").append(_doc.getNumViews()).append("</td>");
+    buf.append("<td>").append(_doc.getPageRank()).append("</td>");
+    buf.append("</tr>");
+    return buf.toString();
   }
 
   @Override
