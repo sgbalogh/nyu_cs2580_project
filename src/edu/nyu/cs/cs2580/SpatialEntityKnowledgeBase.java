@@ -64,7 +64,6 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         }
     }
 
-    //TODO: implement this
     public List<GeoEntity> getCandidates(String term) {
         List<GeoEntity> candidates;
         if (this._term_search_map.containsKey(term)) {

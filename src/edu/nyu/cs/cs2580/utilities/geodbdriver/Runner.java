@@ -7,7 +7,6 @@ package edu.nyu.cs.cs2580.utilities.geodbdriver;
 import java.sql.SQLException;
 
 public class Runner {
-
     public static void main(String[] args) {
 
         try {
@@ -16,16 +15,13 @@ public class Runner {
             e.printStackTrace();
         }
 
-        Connector mine = new Connector();
+        Connector connector = new Connector();
         try {
-            mine.RunQuery();
+            connector.RunQuery();
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
     }
-
-
 }
 
 
