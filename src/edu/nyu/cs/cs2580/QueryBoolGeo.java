@@ -47,4 +47,8 @@ public class QueryBoolGeo extends Query{
     public void set_candidate_geo_entities(List<GeoEntity> _candidate_geo_entities) {
         this._candidate_geo_entities = _candidate_geo_entities;
     }
+    
+    //Split Boolean
+    
+    //Create Boolean
 }

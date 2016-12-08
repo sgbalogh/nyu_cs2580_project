@@ -10,6 +10,9 @@ public class DocumentIndexed extends Document {
   //Total Number of words in Document
   public long _numWords;
   public String fileName;
+  
+  //TODO: Export out of parser
+  //public List<String> likelyLocations;
 
   public DocumentIndexed(int docid, long numWords) {
     super(docid);

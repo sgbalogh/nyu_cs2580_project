@@ -136,14 +136,9 @@ public abstract class Indexer {
    */
   public static class Factory {
     public static Indexer getIndexerByOption(Options options) {
-      if (options._indexerType.equals("fullscan")) {
-        return new IndexerFullScan(options);
-      } else if (options._indexerType.equals("inverted-doconly")) {
-        return null; //new IndexerInvertedDoconly(options);
-      } else if (options._indexerType.equals("inverted-occurrence")) {
-        return null; //new IndexerInvertedOccurrence(options);
-      } else if (options._indexerType.equals("inverted-compressed")) {
-        return new IndexerInvertedCompressed(options);
+      if (options._indexerType.equals("inverted-compressed")) {
+    	  //TODO: ADd GKB
+    	  return new IndexerInvertedCompressed(options, null);
       }
       return null;
     }

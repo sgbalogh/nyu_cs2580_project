@@ -41,8 +41,11 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
   	    }
   	}
   	
-  	public IndexerInvertedCompressed(Options options) {
+  	private SpatialEntityKnowledgeBase gkb;
+  	
+  	public IndexerInvertedCompressed(Options options, SpatialEntityKnowledgeBase gkb) {
 	  super(options);
+	  this.gkb = gkb;
 	  System.out.println("Using Indexer: " + this.getClass().getSimpleName());
   	}
   	
@@ -283,7 +286,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 	        		}
 	        		
 	      		  	//TODO: Look for locations to suggest
-	        		//gkb.getCandidates(term);
+	        		//for( gkb.getCandidates(term)) 
 	        		
 	        		//Stem
 	        		stemmer.add(word.toCharArray(),word.length());
@@ -493,11 +496,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		//Garbage Collection drop loaded object
 		loaded = null;
 		
-		//TODO: Load whatever I can into cache
 		_cache = new HashMap<>();
-		
-		//System.out.println(Arrays.toString(loadPostingFile("google")));
-		//System.out.println(Arrays.toString(loadPostingFile("hills")));
 	}
 
 	@Override
