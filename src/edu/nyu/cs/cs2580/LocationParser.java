@@ -29,7 +29,7 @@ public class LocationParser {
             String[] tokens = inputString.split("\\s");
             int startIndex, endIndex;
             int nextSegmentIndex=0;
-            String candidateOfCandidate="";
+            String candidateOfCandidate="";      //for testing the possible query segment as a valid location candidate
             for(int i=nextSegmentIndex; i<length; i++){
 
                 for(int j=i;j<length; j++){
