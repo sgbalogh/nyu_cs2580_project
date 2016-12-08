@@ -199,8 +199,7 @@ public class SearchEngine {
   private static void startServing() throws IOException, ClassNotFoundException {
     // Create the handler and its associated indexer.
     Indexer indexer = Indexer.Factory.getIndexerByOption(SearchEngine.OPTIONS);
-    SpatialEntityKnowledgeBase gkb = new SpatialEntityKnowledgeBase();
-    gkb.load();
+    SpatialEntityKnowledgeBase gkb = LocationLoader.loadLocations();
     Check(indexer != null,
         "Indexer " + SearchEngine.OPTIONS._indexerType + " not found!");
     indexer.loadIndex();

@@ -27,7 +27,6 @@ public class QueryBoolGeo extends Query{
         _candidate_geo_entities = geoEntities;
     }
 
-
     public List<GeoEntity> get_expanded_geo_entities() {
         return _expanded_geo_entities;
     }

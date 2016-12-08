@@ -12,7 +12,7 @@ import java.util.LinkedList;
 public class LocationLoader {
 
 
-    public static void loadLocations() {
+    public static SpatialEntityKnowledgeBase loadLocations() {
 
         SpatialEntityKnowledgeBase knowledgeBase = new SpatialEntityKnowledgeBase();
         HashMap<Integer, LinkedList<Integer>> nearestNeighbors = new HashMap<>();
@@ -24,6 +24,8 @@ public class LocationLoader {
 
         String line = "";
         String csvSplitter = ",";
+
+        System.out.println("Populating cities...");
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvFileCities))) {
             Integer line_num = 0;
@@ -65,8 +67,7 @@ public class LocationLoader {
         } catch (IOException e) {
         }
 
-        System.out.println("Finished adding cities...");
-        System.out.println("Starting to add counties...");
+        System.out.println("Populating counties...");
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvFileCounties))) {
             Integer line_num = 0;
@@ -91,8 +92,7 @@ public class LocationLoader {
         } catch (IOException e) {
         }
 
-        System.out.println("Finished adding counties...");
-        System.out.println("Starting to add states...");
+        System.out.println("Populating states...");
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvFileStates))) {
             Integer line_num = 0;
@@ -117,17 +117,11 @@ public class LocationLoader {
         } catch (IOException e) {
         }
 
-        System.out.println("Finished adding states...");
-
-        System.out.println("Adding nation...");
         GeoEntity nation = new GeoEntity(6252001, "United States of America", "NATION");
         knowledgeBase.addEntityToMap(nation);
 
-        System.out.println("Connecting parents and children...");
+        System.out.println("Connecting geospatial entities...");
         knowledgeBase.constructTree();
-
-        System.out.println("Reading relations...");
-
         try (BufferedReader br = new BufferedReader(new FileReader(csvFileRelations))) {
             Integer line_num = 0;
             while ((line = br.readLine()) != null) {
@@ -150,10 +144,11 @@ public class LocationLoader {
 
         } catch (IOException e) {
         }
-
         knowledgeBase.addNeighbors(nearestNeighbors);
-        System.out.println("All done!");
 
+        System.out.println("Loaded " + knowledgeBase.getTotalEntityCount() + " places!");
+
+        return knowledgeBase;
 
     }
 

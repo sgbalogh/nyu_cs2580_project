@@ -1,6 +1,6 @@
 package edu.nyu.cs.cs2580;
 
-import java.io.Serializable;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -10,11 +10,13 @@ public class SpatialEntityKnowledgeBase implements Serializable {
     private HashMap<Integer, GeoEntity> _entity_map; // GeoName ID to corresponding GeoEntity
     private HashMap<String, GeoEntity> _us_county_map; // County code to corresponding GeoEntity, e.g. "US.GA.005" -> GeoEntity
     private HashMap<String, GeoEntity> _us_state_map; // State abbr. to corresponding GeoEntity, e.g. "NY" -> GeoEntity
+    private HashMap<String, List<GeoEntity>> _term_search_map; // Given a term (e.g. "springfield"), find candidate GeoEntities
 
     public SpatialEntityKnowledgeBase() {
         this._entity_map = new HashMap<>();
         this._us_county_map = new HashMap<>();
         this._us_state_map = new HashMap<>();
+        this._term_search_map = new HashMap<>();
     }
 
     public boolean addEntityToMap(GeoEntity toAdd) {
@@ -35,9 +37,40 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         }
     }
 
-    //TODO: implement this
+    private void constructTermMap() {
+        for (Map.Entry<Integer, GeoEntity> entry : _entity_map.entrySet()) {
+            GeoEntity entity = entry.getValue();
+            String key = entity.getName().toLowerCase();
+            if (_term_search_map.containsKey(key)) {
+                _term_search_map.get(key).add(entity);
+            } else {
+                ArrayList<GeoEntity> toAdd = new ArrayList<>();
+                toAdd.add(entity);
+                _term_search_map.put(key, toAdd);
+            }
+            String[] split_key = key.split(" ");
+            if (split_key.length > 1) {
+                for (int i = 0; i < split_key.length; i++) {
+                    String key_segment = split_key[i];
+                    if (_term_search_map.containsKey(key_segment)) {
+                        _term_search_map.get(key_segment).add(entity);
+                    } else {
+                        ArrayList<GeoEntity> toAdd = new ArrayList<>();
+                        toAdd.add(entity);
+                        _term_search_map.put(key_segment, toAdd);
+                    }
+                }
+            }
+        }
+    }
+
     public List<GeoEntity> getCandidates(String term) {
-        List<GeoEntity> candidates = new ArrayList<>();
+        List<GeoEntity> candidates;
+        if (this._term_search_map.containsKey(term)) {
+            candidates = this._term_search_map.get(term);
+        } else {
+            candidates = new ArrayList<>();
+        }
         return candidates;
     }
 
@@ -92,9 +125,9 @@ public class SpatialEntityKnowledgeBase implements Serializable {
             }
 
         }
+        this.constructTermMap();
         return true;
     }
-
 
     public void addNeighbors(HashMap<Integer, LinkedList<Integer>> nearestNeighbors) {
         for (Map.Entry<Integer, LinkedList<Integer>> entry : nearestNeighbors.entrySet()) {
@@ -108,13 +141,8 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         }
     }
 
-
-    //TODO: implement this
-    public void load() {
+    public int getTotalEntityCount() {
+        return _entity_map.size();
     }
 
-    //TODO
-    public void save() {
-
-    }
 }

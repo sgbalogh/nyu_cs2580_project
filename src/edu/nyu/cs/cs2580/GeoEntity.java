@@ -1,12 +1,14 @@
 package edu.nyu.cs.cs2580;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 /**
  * Created by stephen on 12/2/16.
  */
-public class GeoEntity {
+public class GeoEntity implements Serializable {
 
     // ID assigned by GeoNames
     private Integer id;
@@ -62,21 +64,36 @@ public class GeoEntity {
         return "";
     }
 
-    //TODO: implement this
     public List<GeoEntity> getNearbyCities(int max) {
-
+        if (this.nearby.size() > 0) {
+            int stop_int = (max > this.nearby.size()) ? this.nearby.size() : max;
+            ArrayList<GeoEntity> toReturn = new ArrayList<>();
+            for (int i = 0; i < stop_int; i++) {
+                toReturn.add(this.nearby.get(i));
+            }
+            return toReturn;
+        }
         return null;
     }
 
-    //TODO: implement this
-    public String getStateName() {
-
-        return null;
+    public GeoEntity getState() {
+        GeoEntity toReturn = null;
+        if (this.type.equals("STATE")) {
+            toReturn = this;
+        } else if (this.type.equals("CITY") || this.type.equals("COUNTY")) {
+            toReturn = this.parent.getState();
+        }
+        return toReturn;
     }
 
-    //TODO: implement this
-    public String getCountyName() {
-        return null;
+    public GeoEntity getCounty() {
+        GeoEntity toReturn = null;
+        if (this.type.equals("COUNTY")) {
+            toReturn = this;
+        } else if (this.type.equals("CITY")) {
+            toReturn = this.parent.getCounty();
+        }
+        return toReturn;
     }
 
     public String[] getNearbyCityNames(int max) {
@@ -91,12 +108,37 @@ public class GeoEntity {
         return null;
     }
 
+    public String getNearbyCitiesGEOJSON(int max) {
+        if (this.nearby.size() > 0) {
+            StringBuilder json = new StringBuilder();
+            json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+            int stop_int = (max > this.nearby.size()) ? this.nearby.size() : max;
+            json.append("{ \"type\": \"Feature\", \"id\": \"")
+                    .append(this.getId())
+                    .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                    .append(this.longitude).append(", ").append(this.latitude).append("]}")
+                    .append(", \"properties\": { \"name\": \"").append(this.getName())
+                    .append("\", \"type\": \"primary\", \"population\": ").append(this.population).append("}}");
+            for (int i = 0; i < stop_int; i++) {
+                GeoEntity nearby = this.nearby.get(i);
+                json.append(",{ \"type\": \"Feature\", \"id\": \"")
+                        .append(nearby.getId())
+                        .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                        .append(nearby.longitude).append(", ").append(nearby.latitude).append("]}")
+                        .append(", \"properties\": { \"name\": \"").append(nearby.getName())
+                        .append("\", \"type\": \"expanded\", \"population\": ").append(nearby.population).append("}}");
+            }
+            json.append("]}");
+            return json.toString();
+        }
+        return null;
+    }
+
 
     public String[] getChildrenNames(int max) {
         if (this.children.size() > 0) {
             int stop_int = (max > this.nearby.size()) ? this.nearby.size() : max;
             String[] toReturn = new String[stop_int];
-
         }
         return null;
     }
