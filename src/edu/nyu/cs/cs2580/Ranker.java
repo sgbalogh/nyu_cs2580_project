@@ -62,13 +62,13 @@ public abstract class Ranker {
         Options options, Indexer indexer) {
       switch (arguments._rankerType) {
       case FULLSCAN:
-        return new RankerFullScan(options, arguments, indexer);
+        break;
       case CONJUNCTIVE:
-        return new RankerConjunctive(options, arguments, indexer);
+    	  break;
       case FAVORITE:
-        return new RankerFavorite(options, arguments, indexer);
+    	  break;
       case COMPREHENSIVE:
-        return new RankerComprehensive(options, arguments, indexer);
+          return new RankerGeoComprehensive(options, arguments, indexer);
       case COSINE:
         // Plug in your cosine Ranker
         break;

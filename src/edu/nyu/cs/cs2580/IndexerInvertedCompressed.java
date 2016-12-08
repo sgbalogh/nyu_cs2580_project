@@ -101,6 +101,8 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
   	  System.out.println("Loading pagerank scores...");
   	  
   	  CorpusAnalyzerPagerank pageranker = (CorpusAnalyzerPagerank) this._corpusAnalyzer;
+  	  
+  	  @SuppressWarnings("unchecked")
   	  Vector<Double> _doc_pagerank = (Vector<Double>) pageranker.load();
     
   	  //Create Index Directory
@@ -273,11 +275,15 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
   		  	
   	      	//Update Map
   		  	int wordIndex = 0;
+  		  	
   	      	for(String word: parseDocument(fileEntry)) {
 	        		//Stopwords
 	        		if(stopWords.contains(word)) {
 	        			continue;
 	        		}
+	        		
+	      		  	//TODO: Look for locations to suggest
+	        		//gkb.getCandidates(term);
 	        		
 	        		//Stem
 	        		stemmer.add(word.toCharArray(),word.length());

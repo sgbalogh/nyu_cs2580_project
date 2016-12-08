@@ -39,6 +39,10 @@ public class QueryBoolGeo extends Query{
     public GeoEntity get_candidate_geo_entity(int index_to_grab) {
         return _candidate_geo_entities.get(index_to_grab);
     }
+    
+    public List<GeoEntity> get_candidate_geo_entities() {
+        return _candidate_geo_entities;
+    }
 
     public void set_candidate_geo_entities(List<GeoEntity> _candidate_geo_entities) {
         this._candidate_geo_entities = _candidate_geo_entities;
