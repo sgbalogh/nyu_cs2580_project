@@ -1,6 +1,7 @@
 package edu.nyu.cs.cs2580;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -27,7 +28,7 @@ public class QueryBoolGeo extends Query{
     private List<GeoEntity> _candidate_geo_entities; // This should hold all candidate GeoEntities for "jersey city"...
     // { Jersey City, NJ ; Jersey City, Utah ; etc..}
     private List<GeoEntity> _expanded_geo_entities;
-    private List<String> _expanded_queries;
+
     public boolean _should_present; // THIS SHOULD always be true if _expanded_queries.size() > 0
     //TODO Need to introduce cache flag which returns cached value and best which returns merged form
     public boolean cache = false;
@@ -37,7 +38,6 @@ public class QueryBoolGeo extends Query{
         super(inputString);
         //DO NOT PROCESS INPUT STRING
         _should_present = false;
-
     }
 
     // THESE ARE THE METHODS THAT LOCATIONPARSER WILL USE :
@@ -54,18 +54,19 @@ public class QueryBoolGeo extends Query{
 
 
     // THESE ARE THE METHODS THAT RANKERGEOCOMPREHENSIVE WILL USE:
-    public List<String> get_expanded_queries() {
-        return _expanded_queries;
+    public List<GeoEntity> get_expanded_geo_entities () {
+        return _expanded_geo_entities;
     }
 
     // TAKES THE CANDIDATE GEO ENTITIES to max degree (~2 - 3), EXPANDS ALL OF THEM, AND CREATES NEW
     // QUERY STRINGS THAT POPULATE _expanded_queries
+    //TODO: make sure that max refers to the total number of expanded entities, not total per entity
     public void expand(int max) {
         if (_candidate_geo_entities.size() > 0) {
             for (int i = 0; i < max; i++) {
                 ArrayList<GeoEntity> entities = (ArrayList) _candidate_geo_entities.get(i).fullExpand(3);
                 for (GeoEntity entity : entities) {
-                    _expanded_queries.add(entity.getName() + " " + String.join(" ", _input_strings));
+                    _expanded_geo_entities.add(entity);
                 }
             }
         }

@@ -114,13 +114,18 @@ public class RankerGeoComprehensive extends Ranker {
             //Expand Word
             query.expand(_max_expansion);
 
-            Iterator<String> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_queries().iterator();
+            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
 
             while(expQueryIterator.hasNext()) {
 
-                //Create new query
-                QueryBoolGeo expandedQuery = new QueryBoolGeo(expQueryIterator.next());
-                expandedQuery.populateInputStrings(Arrays.asList(expandedQuery._query.split("\\s")));
+                //Create new query:
+                String cityName = expQueryIterator.next().getName();
+
+                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._tokens.toString().replaceAll( "[^A-Za-z0-9]", "") + " " + cityName);
+                Vector<String> _non_location = query._tokens;
+                _non_location.add(cityName);
+
+                expandedQuery.populateInputStrings(query._tokens);
 
                 ScoredSumTuple newResults = runQuery(expandedQuery , numResults);
 
@@ -149,7 +154,11 @@ public class RankerGeoComprehensive extends Ranker {
 
             //Log Expansion queries
             if(query._should_present) {
-                logs.append("Expansion Terms: ").append(query.get_expanded_queries().toString()).append("\n");
+                logs.append("Expansion Terms: ");
+                for(GeoEntity gEnt : query.get_expanded_geo_entities()) {
+                    logs.append(gEnt.getName()).append(" ");
+                }
+                logs.append("\n");
             }
         } else {
             //No Expansion
