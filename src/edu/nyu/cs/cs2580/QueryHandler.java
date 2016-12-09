@@ -187,17 +187,8 @@ class QueryHandler implements HttpHandler {
 
     HtmlGenerator htmlDocument = new HtmlGenerator(docs, new QueryBoolGeo(""));
 
-    response.append("<html><head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com" +
-            "/bootstrap/3.3.7/css/bootstrap.min.css\" integrity=\"sha384-BVYiiSIFeK1dGmJRAkycuHAH" +
-            "Rg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u\" crossorigin=\"anonymous\"></head><body>" +
-            "<div class=\"container\"><table class=\"table table-striped\"><thead><tr>" +
-            "<th>Document ID</th><th>Title</th><th>Score</th><th>Views</th><th>PageRank</th></tr></thead><tbody>");
-    for (ScoredDocument doc : docs) {
-      response.append(response.length() > 0 ? "\n" : "");
-      response.append(doc.asHtmlResult());
-    }
-    response.append(response.length() > 0 ? "\n" : "No result returned!");
-    response.append("</tbody></table></div></body></html>");
+    response.append(htmlDocument.toString());
+
   }
 
   public void handle(HttpExchange exchange) throws IOException {
