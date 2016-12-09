@@ -7,39 +7,55 @@ import java.util.List;
  */
 public class QueryBoolGeo extends Query{
 
-    public List<String> _input_strings;
-    private List<GeoEntity> _candidate_geo_entities;
-    private List<GeoEntity> _expanded_geo_entities;
-    public boolean _expanded;
-    public boolean _should_present;
+    // For example query "jersey city zoo"...
+    ///
+    // QueryHandler creates a QGB that contains the original query string,
+    // this object is then passed as an argument to LocationParser,
+    // LocationParser performs statistical segmentation on the terms in the query string,
+    // LocationParser adds back to the QBG instance the list of expanded GeoEntities,
+    // QBG then creates a List of expanded strings that represent the merging of non spatial
+    // original query terms and expanded query terms (i.e. {"bronx zoo", "manhattan zoo", ...})
+    //
+    // The QBG that was passed to LocationParser is then passed back to the QueryHandler, which
+    // passes the QBG to the Ranker
 
-    public QueryBoolGeo(String inputString, List<String> inputStrings, List<GeoEntity> inputGeoEntities, boolean expanded) {
+    // QBG needs to separate original query string from expanded query strings (so that the Ranker
+    // can disambiguate between them)
+
+    public List<String> _input_strings; // "jersey city zoo" => {"zoo"} (done in LP)
+    private List<GeoEntity> _candidate_geo_entities; // This should hold all candidate GeoEntities for "jersey city"...
+    // { Jersey City, NJ ; Jersey City, Utah ; etc..}
+    private List<GeoEntity> _expanded_geo_entities;
+    public List<String> _expanded_queries;
+    public boolean _should_present; // THIS SHOULD always be true if _expanded_queries.size() > 0
+
+    public QueryBoolGeo(String inputString) {
         super(inputString);
         //DO NOT PROCESS INPUT STRING
-        _input_strings = inputStrings;
-        _candidate_geo_entities = inputGeoEntities;
-        _expanded = expanded;
         _should_present = false;
 
     }
 
+    // THESE ARE THE METHODS THAT LOCATIONPARSER WILL USE :
     public void populateGeoEntities(List<GeoEntity> geoEntities) {
         _candidate_geo_entities = geoEntities;
     }
 
-    public List<GeoEntity> get_expanded_geo_entities() {
-        return _expanded_geo_entities;
+    public void populateInputStrings(List<String> input) {
+        _input_strings = input;
     }
 
-    public void set_expanded_geo_entities(List<GeoEntity> _expanded_geo_entities) {
-        this._expanded_geo_entities = _expanded_geo_entities;
+
+    // THESE ARE THE METHODS THAT RANKERGEOCOMPREHENSIVE WILL USE:
+    public List<String> get_expanded_queries() {
+        return _expanded_queries;
     }
 
-    public GeoEntity get_candidate_geo_entity(int index_to_grab) {
-        return _candidate_geo_entities.get(index_to_grab);
+    // TAKES THE CANDIDATE GEO ENTITIES to max degree (~2 - 3), EXPANDS ALL OF THEM, AND CREATES NEW
+    // QUERY STRINGS THAT POPULATE _expanded_queries
+    public void expand(int max) {
+
     }
 
-    public void set_candidate_geo_entities(List<GeoEntity> _candidate_geo_entities) {
-        this._candidate_geo_entities = _candidate_geo_entities;
-    }
+
 }
