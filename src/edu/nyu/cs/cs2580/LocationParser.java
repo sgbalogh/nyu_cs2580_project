@@ -15,7 +15,7 @@ public class LocationParser {
     }
 
     public QueryBoolGeo parseQuery(String inputString) {
-        QueryBoolGeo toReturn = new QueryBoolGeo(inputString, null, null, false);
+        QueryBoolGeo toReturn = new QueryBoolGeo(inputString);
         return toReturn;
     }
 
@@ -23,6 +23,7 @@ public class LocationParser {
     // INCLUDE METHOD FOR STATISTICAL SEGMENTATION
     //===============================================
 
+    //Implement Spell-Check
 
 
 }

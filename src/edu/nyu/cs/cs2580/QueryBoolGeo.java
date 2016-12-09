@@ -28,12 +28,15 @@ public class QueryBoolGeo extends Query{
     private List<GeoEntity> _expanded_geo_entities;
     public List<String> _expanded_queries;
     public boolean _should_present; // THIS SHOULD always be true if _expanded_queries.size() > 0
+    
+    //TODO Need to introduce cache flag which returns cached value and best which returns merged form
+    public boolean cache = false;
+    public boolean best = false;
 
     public QueryBoolGeo(String inputString) {
         super(inputString);
         //DO NOT PROCESS INPUT STRING
         _should_present = false;
-
     }
 
     // THESE ARE THE METHODS THAT LOCATIONPARSER WILL USE :

@@ -41,14 +41,7 @@ class QueryHandler implements HttpHandler {
     // The type of the ranker we will be using.
     public enum RankerType {
       NONE,
-      FULLSCAN,
-      CONJUNCTIVE,
-      FAVORITE,
-      COSINE,
-      PHRASE,
-      QL,
-      LINEAR,
-      COMPREHENSIVE,
+      GEOCOMPREHENSIVE,
     }
     public RankerType _rankerType = RankerType.NONE;
 
@@ -185,7 +178,7 @@ class QueryHandler implements HttpHandler {
 
   public void constructHtmlOutput(final Vector<ScoredDocument> docs, StringBuffer response) {
 
-    HtmlGenerator htmlDocument = new HtmlGenerator(docs, new QueryBoolGeo("", null, null, false));
+    HtmlGenerator htmlDocument = new HtmlGenerator(docs, new QueryBoolGeo(""));
 
     response.append("<html><head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com" +
             "/bootstrap/3.3.7/css/bootstrap.min.css\" integrity=\"sha384-BVYiiSIFeK1dGmJRAkycuHAH" +
