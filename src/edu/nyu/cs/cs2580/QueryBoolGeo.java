@@ -1,7 +1,6 @@
 package edu.nyu.cs.cs2580;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -38,6 +37,9 @@ public class QueryBoolGeo extends Query{
         super(inputString);
         //DO NOT PROCESS INPUT STRING
         _should_present = false;
+        _input_strings = new ArrayList<>();
+        _candidate_geo_entities = new ArrayList<>();
+        _expanded_geo_entities = new ArrayList<>();
     }
 
     // THESE ARE THE METHODS THAT LOCATIONPARSER WILL USE :

@@ -106,6 +106,8 @@ public class RankerGeoComprehensive extends Ranker {
 
         ScoredSumTuple origBenchmark = runQuery(query, numResults);
 
+        System.out.println("Original Finished: " + origBenchmark.scored.size());
+        
         StringBuilder logs = new StringBuilder("Orig Term :");
         logs.append(query._query).append(" ").append(origBenchmark.total_score).append("\n");
 
@@ -115,7 +117,7 @@ public class RankerGeoComprehensive extends Ranker {
             query.expand(_max_expansion);
 
             Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
-
+        	
             while(expQueryIterator.hasNext()) {
 
                 //Create new query:
@@ -160,6 +162,7 @@ public class RankerGeoComprehensive extends Ranker {
                 }
                 logs.append("\n");
             }
+            
         } else {
             //No Expansion
             logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
