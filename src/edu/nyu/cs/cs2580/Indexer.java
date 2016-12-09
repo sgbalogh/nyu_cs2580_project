@@ -137,7 +137,8 @@ public abstract class Indexer {
   public static class Factory {
     public static Indexer getIndexerByOption(Options options) {
       if (options._indexerType.equals("inverted-compressed")) {
-        return new IndexerInvertedCompressed(options);
+    	  //TODO: ADd GKB
+    	  return new IndexerInvertedCompressed(options);
       }
       return new IndexerInvertedCompressed(options);
     }

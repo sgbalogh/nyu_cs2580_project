@@ -62,7 +62,7 @@ public abstract class Ranker {
         Options options, Indexer indexer) {
       switch (arguments._rankerType) {
       case GEOCOMPREHENSIVE:
-        return new RankerGeoComprehensive(options, arguments, indexer);
+    	  return new RankerGeoComprehensive(options, arguments, indexer);
       case NONE:
         // Fall through intended
       default:

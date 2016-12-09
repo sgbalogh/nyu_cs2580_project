@@ -59,6 +59,8 @@ public class QueryBoolGeo extends Query{
     public void expand(int max) {
 
     }
-
-
+    
+    public List<GeoEntity> get_candidate_geo_entities() {
+        return _candidate_geo_entities;
+    }
 }
