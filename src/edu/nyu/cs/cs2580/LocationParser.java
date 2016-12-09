@@ -36,6 +36,7 @@ public class LocationParser {
                 freq2 = _indexer.corpusTermFrequency(currentStringTested2);
                 if(freq1 < freq2){
 
+                    
                     spaces[i] += 1;
                 }
                 else {
