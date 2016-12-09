@@ -181,7 +181,6 @@ public class SearchEngine {
   }
 
   private static void startLoadingPlaces() {
-    System.out.println("hey whats up!");
     LocationLoader.loadLocations();
   }
   
@@ -228,6 +227,7 @@ public class SearchEngine {
       case SERVE:
         startServing();
         break;
+      //TODO delete LOAD_PLACES
       case LOAD_PLACES:
         startLoadingPlaces();
         break;

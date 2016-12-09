@@ -103,7 +103,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		CorpusAnalyzerPagerank pageranker = (CorpusAnalyzerPagerank) this._corpusAnalyzer;
 
 		@SuppressWarnings("unchecked")
-		Vector<Double> _doc_pagerank = (Vector<Double>) pageranker.load();
+		//Vector<Double> _doc_pagerank = (Vector<Double>) pageranker.load();
 
 		//Create Index Directory
 		File indexDirectory = new File(_postings_list_dir);
@@ -112,7 +112,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 			clearIndex(indexDirectory);
 			System.out.println("Finished Clearing");
 		} else {
-			indexDirectory.mkdir();
+			indexDirectory.mkdirs();
 		}
 
 		//Load StopWords
@@ -148,8 +148,9 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				//Update corpus count
 				temp_totalTermFrequency += docWords.length;
 
+				//TODO: actually deal with pagerank
 				_docs.add(buildDocument(fileEntry, doc_id, docWords.length,
-						_doc_pagerank.get(docInCorpus), 0 ));
+						0, 0 ));
 				docInCorpus++;
 
 				docCount = new HashMap<>();
@@ -214,6 +215,8 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		int shardFile = 0;
 		bufferEst = bufferEst / shards;
 		String newIndexFile;
+
+		_numDocs = _docs.size();
 
 		System.out.println(bufferEst + " " + _docs.size());
 
@@ -483,6 +486,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		this._docs = loaded._docs;
 		this._dictionary = loaded._dictionary;
 		this.sortByIndex = loaded.sortByIndex;
+		this._numDocs = _docs.size();
 
 		//Non-unique word count
 		this._totalTermFrequency = loaded.temp_totalTermFrequency;

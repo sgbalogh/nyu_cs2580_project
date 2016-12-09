@@ -176,9 +176,9 @@ class QueryHandler implements HttpHandler {
     response.append(response.length() > 0 ? "\n" : "");
   }
 
-  public void constructHtmlOutput(final Vector<ScoredDocument> docs, StringBuffer response) {
+  public void constructHtmlOutput(final Vector<ScoredDocument> docs, StringBuffer response, QueryBoolGeo processed) {
 
-    HtmlGenerator htmlDocument = new HtmlGenerator(docs, new QueryBoolGeo(""));
+    HtmlGenerator htmlDocument = new HtmlGenerator(docs, processed);
 
     response.append(htmlDocument.toString());
 
@@ -227,8 +227,11 @@ class QueryHandler implements HttpHandler {
       // USE LOCATION PARSER
       // Feed it a string of the entire user-issued query
       //===============================================
-      Query processedQuery = new QueryPhrase(cgiArgs._query);
-      processedQuery.processQuery();
+
+      QueryBoolGeo processedQuery = _location_parser.parseQuery(cgiArgs._query);
+
+
+      //TODO: Look for CGI ARGUMENTs for best and cached, flip flags if found in processQuery
 
 
       // Ranking.
@@ -248,7 +251,7 @@ class QueryHandler implements HttpHandler {
           respondWithMsg(exchange, response.toString());
           break;
         case HTML:
-          constructHtmlOutput(scoredDocs, response);
+          constructHtmlOutput(scoredDocs, response, processedQuery);
           respondWithHtml(exchange, response.toString());
           break;
         case TSV:

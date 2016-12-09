@@ -1,5 +1,8 @@
 package edu.nyu.cs.cs2580;
 
+import java.util.Arrays;
+import java.util.Vector;
+
 /**
  * Created by stephen on 12/3/16.
  */
@@ -16,13 +19,18 @@ public class LocationParser {
 
     public QueryBoolGeo parseQuery(String inputString) {
         QueryBoolGeo toReturn = new QueryBoolGeo(inputString);
+        //Testing
+        //TODO: this needs to be able to deal with quotation/phrase searches
+        toReturn._tokens = new Vector<>();
+        toReturn._tokens.addAll(Arrays.asList(inputString.split("\\s+")));
+
+
         return toReturn;
     }
 
     //===============================================
     // INCLUDE METHOD FOR STATISTICAL SEGMENTATION
     //===============================================
-
 
 
 }
