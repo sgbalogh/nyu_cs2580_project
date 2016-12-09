@@ -29,6 +29,9 @@ public class QueryBoolGeo extends Query{
     private List<GeoEntity> _expanded_geo_entities;
     private List<String> _expanded_queries;
     public boolean _should_present; // THIS SHOULD always be true if _expanded_queries.size() > 0
+    //TODO Need to introduce cache flag which returns cached value and best which returns merged form
+    public boolean cache = false;
+    public boolean best = false;
 
     public QueryBoolGeo(String inputString) {
         super(inputString);
@@ -43,6 +46,10 @@ public class QueryBoolGeo extends Query{
     }
     public void populateInputStrings(List<String> input) {
         _input_strings = input;
+    }
+
+    public List<GeoEntity> get_candidate_geo_entities() {
+        return this._candidate_geo_entities;
     }
 
 

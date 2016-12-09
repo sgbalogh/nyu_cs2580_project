@@ -59,32 +59,14 @@ public abstract class Ranker {
    */
   public static class Factory {
     public static Ranker getRankerByArguments(CgiArguments arguments,
-        Options options, Indexer indexer) {
+                                              Options options, Indexer indexer) {
       switch (arguments._rankerType) {
-      case FULLSCAN:
-        break;
-      case CONJUNCTIVE:
-        break;
-      case FAVORITE:
-        break;
-      case COMPREHENSIVE:
-        return new RankerGeoComprehensive(options, arguments, indexer);
-      case COSINE:
-        // Plug in your cosine Ranker
-        break;
-      case QL:
-        // Plug in your QL Ranker
-        break;
-      case PHRASE:
-        // Plug in your phrase Ranker
-        break;
-      case LINEAR:
-        // Plug in your linear Ranker
-        break;
-      case NONE:
-        // Fall through intended
-      default:
-        // Do nothing.
+        case GEOCOMPREHENSIVE:
+          return new RankerGeoComprehensive(options, arguments, indexer);
+        case NONE:
+          // Fall through intended
+        default:
+          // Do nothing.
       }
       return null;
     }
