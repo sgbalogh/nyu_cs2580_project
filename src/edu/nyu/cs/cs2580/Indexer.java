@@ -136,9 +136,7 @@ public abstract class Indexer {
    */
   public static class Factory {
     public static Indexer getIndexerByOption(Options options) {
-      if (options._indexerType.equals("fullscan")) {
-        return new IndexerFullScan(options);
-      } else if (options._indexerType.equals("inverted-compressed")) {
+      if (options._indexerType.equals("inverted-compressed")) {
         return new IndexerInvertedCompressed(options);
       }
       return null;
