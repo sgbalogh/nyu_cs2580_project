@@ -1,5 +1,6 @@
 package edu.nyu.cs.cs2580;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -26,7 +27,7 @@ public class QueryBoolGeo extends Query{
     private List<GeoEntity> _candidate_geo_entities; // This should hold all candidate GeoEntities for "jersey city"...
     // { Jersey City, NJ ; Jersey City, Utah ; etc..}
     private List<GeoEntity> _expanded_geo_entities;
-    public List<String> _expanded_queries;
+    private List<String> _expanded_queries;
     public boolean _should_present; // THIS SHOULD always be true if _expanded_queries.size() > 0
 
     public QueryBoolGeo(String inputString) {
@@ -40,7 +41,6 @@ public class QueryBoolGeo extends Query{
     public void populateGeoEntities(List<GeoEntity> geoEntities) {
         _candidate_geo_entities = geoEntities;
     }
-
     public void populateInputStrings(List<String> input) {
         _input_strings = input;
     }
@@ -54,8 +54,14 @@ public class QueryBoolGeo extends Query{
     // TAKES THE CANDIDATE GEO ENTITIES to max degree (~2 - 3), EXPANDS ALL OF THEM, AND CREATES NEW
     // QUERY STRINGS THAT POPULATE _expanded_queries
     public void expand(int max) {
-
+        if (_candidate_geo_entities.size() > 0) {
+            for (int i = 0; i < max; i++) {
+                ArrayList<GeoEntity> entities = (ArrayList) _candidate_geo_entities.get(i).fullExpand(3);
+                for (GeoEntity entity : entities) {
+                    _expanded_queries.add(entity.getName() + " " + String.join(" ", _input_strings));
+                }
+            }
+        }
     }
-
 
 }

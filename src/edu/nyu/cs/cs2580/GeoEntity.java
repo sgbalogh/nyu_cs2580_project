@@ -76,6 +76,26 @@ public class GeoEntity implements Serializable {
         return null;
     }
 
+    // Full expand provides same functionality as getNearbyCities, but also
+    // returns the parent county and state (if they exist)
+    public List<GeoEntity> fullExpand(int maxcities) {
+        ArrayList<GeoEntity> toReturn = new ArrayList<>();
+        if (this.nearby.size() > 0) {
+            int stop_int = (maxcities > this.nearby.size()) ? this.nearby.size() : maxcities;
+            for (int i = 0; i < stop_int; i++) {
+                toReturn.add(this.nearby.get(i));
+            }
+            return toReturn;
+        }
+        if (this.type == "CITY" && this.getCounty() != null) {
+            toReturn.add(this.getCounty());
+        }
+        if ((this.type == "CITY" || this.type == "COUNTY") && this.getState() != null) {
+            toReturn.add(this.getState());
+        }
+        return toReturn;
+    }
+
     public GeoEntity getState() {
         GeoEntity toReturn = null;
         if (this.type.equals("STATE")) {
