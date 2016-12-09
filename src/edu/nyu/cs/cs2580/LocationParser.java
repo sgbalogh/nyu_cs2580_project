@@ -8,36 +8,28 @@ public class LocationParser {
 
     private SpatialEntityKnowledgeBase _gkb;
     private Indexer _indexer;
-    private String givenQuery;
-    private String[] tokens;
-    private int[] lengthOfCandidateTerm = new int[] {1,2,3};
     private List<String> listOfCandidateLocation = new ArrayList<>();
-
+    private QueryBoolGeo toReturn;
     public LocationParser(Indexer indexer, SpatialEntityKnowledgeBase gkb) {
         _indexer = indexer;
         _gkb = gkb;
 
     }
 
-    public QueryBoolGeo parseQuery(String inputString) {
-        QueryBoolGeo toReturn = new QueryBoolGeo(inputString);
-        return toReturn;
-    }
 
-    public void segmentThisQuery(String s){
-        givenQuery = s;
-        tokens = givenQuery.split("\\s");
+    public QueryBoolGeo parseQuery(String givenQuery){
+        toReturn = new QueryBoolGeo(givenQuery);
+        String[] tokens = givenQuery.split("\\s+");
         int length = tokens.length;
         String currentStringTested="";
         String currentStringTested2="";
         int freq1=0;
         int freq2=0;
-        int[] spaces = new int[length-2];
-        for(int i=0;i<spaces.length;i++)
-            spaces[i] = 0;
+        int[] spaces = new int[length-1];
+
 
         int currentLengthOfCnadidate = 2;
-        for(int i=0; i< (length - currentLengthOfCnadidate + 1 - 1); i++){
+        for(int i=0; i< (length - currentLengthOfCnadidate ); i++){
                 currentStringTested = tokens[i] + tokens[i+1];
                 currentStringTested2 = tokens[i+1] + tokens[i+2];
                 freq1 = _indexer.corpusTermFrequency(currentStringTested);
@@ -79,10 +71,13 @@ public class LocationParser {
                 pendingToken = tokens[i+1];
             }
         }
+
+        return forEachSegments();
+
     }
 
-    public void forEachSegments(){
-        List<String> location_terms = new ArrayList<>();
+    public QueryBoolGeo forEachSegments(){
+        List<GeoEntity> location_terms = new ArrayList<>();
         List<String> non_location_terms = new ArrayList<>();
         for(String s: listOfCandidateLocation){
             List<GeoEntity> localList = _gkb.getCandidates(s);
@@ -90,10 +85,15 @@ public class LocationParser {
                 non_location_terms.add(s);
             }
             else{
-                location_terms.add(s);
+                for(GeoEntity g: localList) {
+                    location_terms.add(g);
+                }
             }
         }
 
+        toReturn.populateInputStrings(non_location_terms);
+        toReturn.populateGeoEntities(location_terms);
+        return toReturn;
     }
 
 
