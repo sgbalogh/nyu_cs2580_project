@@ -73,9 +73,8 @@ public class RankerGeoComprehensive extends Ranker {
 		}
 	}
 	
-	public double _alpha = 0.5; //Default Alpha is 0.5 for Smoothing
 	public double _orig_threshold = 100.0; //Determines if original score is strong enough not to do expansion
-	public double _threshold = 100.0; //Significant expansion term score threshold
+	public double _expanded_threshold = 100.0; //Significant expansion term score threshold
 	
 	public int _max_expansion = 5; //Max number of Expansion Terms
 
@@ -130,7 +129,7 @@ public class RankerGeoComprehensive extends Ranker {
 	    		
 	    		//If expansion helps...
 	    		double normalizedScore = newResults.total_score / newResults.queryNorm;
-	    		if( normalizedScore > (_threshold * numResults)
+	    		if( normalizedScore > (_expanded_threshold * numResults)
 	    				&&
 	    				normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
 	    			
@@ -197,10 +196,13 @@ public class RankerGeoComprehensive extends Ranker {
     			PeekingIterator nextElem = mergeBuffer.poll();
     			newResults.add(nextElem.doc);
     			
-    			if(!nextElem.pop())
-    				break;
+    			if(nextElem.pop()) { 
+    				mergeBuffer.add(nextElem);
+    			}
     			
-    			mergeBuffer.add(nextElem);
+    			//Out of Expanded Documents
+    			if(mergeBuffer.size() <= 0)
+    				break;
     		}
     		
     		return newResults;
