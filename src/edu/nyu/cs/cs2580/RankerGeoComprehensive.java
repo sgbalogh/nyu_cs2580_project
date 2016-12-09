@@ -3,6 +3,7 @@ package edu.nyu.cs.cs2580;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,22 +42,26 @@ public class RankerGeoComprehensive extends Ranker {
 	//Scored Vector Tuple
 	public class ScoredSumTuple {
 		public double total_score = 0.0;
+		public double queryNorm = 0.0;
 		public Vector<ScoredDocument> scored;
 		
-		public ScoredSumTuple(Vector<ScoredDocument> scored, double sum) {
+		public ScoredSumTuple(Vector<ScoredDocument> scored, double sum, double queryNorm) {
 			this.scored = scored;
 			this.total_score = sum;
+			this.queryNorm = queryNorm;
 		}
 	}
 	
 	//Peeking Iterator for Merging
 	public class PeekingIterator {
 		public ScoredDocument doc;
+		public double queryNorm;
 		public Iterator<ScoredDocument> iter;
 		
-		public PeekingIterator(Vector<ScoredDocument> scored) {
+		public PeekingIterator(Vector<ScoredDocument> scored, double queryNorm) {
 			iter = scored.iterator();
 			doc = iter.next();
+			this.queryNorm = queryNorm;
 		}
 		
 		public boolean pop() {
@@ -76,12 +81,12 @@ public class RankerGeoComprehensive extends Ranker {
 
 	//Cache: ~5 expanded terms in cache
 	//TODO: Manage Cache memory
-	public HashMap<String, Vector<ScoredDocument>> _cache;
+	public HashMap<String, ScoredSumTuple> _cache;
 	
     public RankerGeoComprehensive(SearchEngine.Options options,
                                QueryHandler.CgiArguments arguments, Indexer indexer) {
         super(options, arguments, indexer);
-        _cache = new HashMap<String, Vector<ScoredDocument>>();
+        _cache = new HashMap<>();
         System.out.println("Using Ranker: " + this.getClass().getSimpleName());
     }
     
@@ -124,14 +129,15 @@ public class RankerGeoComprehensive extends Ranker {
 	    		logs.append(expandedQuery._query).append(": ").append(newResults.total_score);
 	    		
 	    		//If expansion helps...
-	    		if(newResults.total_score > (_threshold * numResults)
+	    		double normalizedScore = newResults.total_score / newResults.queryNorm;
+	    		if( normalizedScore > (_threshold * numResults)
 	    				&&
-	    				newResults.total_score > origBenchmark.total_score) {
+	    				normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
 	    			
 	    			((QueryBoolGeo) init_query)._should_present = true;
 	    			
 	    			//cache
-	    			_cache.put(expandedQuery._query, newResults.scored);
+	    			_cache.put(expandedQuery._query, newResults);
 	    			
 	    			logs.append(": Qualified!\n");
 	    		} else {
@@ -175,18 +181,19 @@ public class RankerGeoComprehensive extends Ranker {
     				new Comparator<PeekingIterator>() {
 						@Override
 						public int compare(PeekingIterator o1, PeekingIterator o2) {
-							return Double.compare(o2.doc.getScore(),o1.doc.getScore());
+							return Double.compare( o2.doc.getScore() / o2.queryNorm ,
+												   o1.doc.getScore() / o1.queryNorm );
 						}
     		});
     		
     		//Initial Insert
-    		for(Vector<ScoredDocument> docs :_cache.values()) {
-    			if(docs.size() > 0)
-    				mergeBuffer.add(new PeekingIterator(docs));
+    		for(ScoredSumTuple docs :_cache.values()) {
+    			if(docs.scored.size() > 0)
+    				mergeBuffer.add(new PeekingIterator(docs.scored, docs.queryNorm));
     		}
     		
     		while(newResults.size() >= numResults ) {
-    			
+
     			PeekingIterator nextElem = mergeBuffer.poll();
     			newResults.add(nextElem.doc);
     			
@@ -199,7 +206,7 @@ public class RankerGeoComprehensive extends Ranker {
     		return newResults;
     	}
     	
-    	return _cache.get(input);
+    	return _cache.get(input).scored;
     }
     
     //Score All Docs
@@ -207,6 +214,7 @@ public class RankerGeoComprehensive extends Ranker {
     	try {
     		Queue<ScoredDocument> rankQueue = new PriorityQueue<ScoredDocument>();
     		double sum = 0.0;
+    		double normSum = 0.0;
 	
     		DocumentIndexed doc = null;
     		int docid = -1;
@@ -217,6 +225,7 @@ public class RankerGeoComprehensive extends Ranker {
     			rankQueue.add(new ScoredDocument(doc, score));
     			
     			sum += score;
+    			normSum += Math.pow(score, 2);
 	
     			//Make sure top X documents are in memory
     			if (rankQueue.size() > numResults) {
@@ -232,35 +241,52 @@ public class RankerGeoComprehensive extends Ranker {
     			results.add(scoredDoc);
     		}
     		
-    		//Collections.sort(results, Collections.reverseOrder());
+    		Collections.sort(results, Collections.reverseOrder());
     		
-    		return new ScoredSumTuple(results, sum);
+    		return new ScoredSumTuple(results, sum, Math.sqrt(normSum));
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
 	    return null;
     }
 	
-    //TODO: Modify to Lucene's formula: https://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/Similarity.html
+    //Modify to Lucene's formula: 
+    //    - https://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/Similarity.html
     //Get Query Likelihood Score
+    //Implemented according to: http://www.lucenetutorial.com/advanced-topics/scoring.html
+    
+    /* Reasoning
+     * Documents containing *all* the search terms are good
+     * Matches on rare words are better than for common words
+     * Long documents are not as good as short ones
+     * Documents which mention the search terms many times are good
+     */
+    
     public Double scoreDocumentQL(QueryBoolGeo query, DocumentIndexed doc) {
     	Double score = 0.0;
 	
     	try {
+    		int foundTerms = 0;
     		//Normal Tokens
     		for(String term : query._tokens) {
-				score += Math.log(
-				        //Probability in Document
-						((1 - _alpha) * _indexer.documentTermFrequency(term, doc._docid) / doc._numWords )
-				            +
-				            //Smoothing
-				        (_alpha * _indexer.corpusTermFrequency(term) / _indexer._totalTermFrequency )
-				);
+    			int docTermFreq = _indexer.documentTermFrequency(term, doc._docid);
+				score += docTermFreq * //Term Frequency
+						 Math.pow(
+								 (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1)) / Math.log(2)) + 1
+								 ,2) * //IDF
+				         (1 / Math.sqrt(query._tokens.size())); //lengthNorm
+				
+				//Overlap
+				foundTerms += (docTermFreq > 0? 1:0);
     		}
+    		
+        	score = score * (1 + doc.getPageRank()) * //multiply by pagerank + 1
+        			(foundTerms / query._tokens.size()); //coord
+        	
 	    } catch(Exception e) {
 	    	e.printStackTrace();
 	    }
-	
-    	return score * (1 + doc.getPageRank()); //multiply by pagerank + 1
+			
+    	return score; 
     }
 }
