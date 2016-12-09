@@ -14,16 +14,9 @@ import java.util.Vector;
 /**
  * Created by stephen on 12/3/16.
  */
-//TODO: implement this
-    //Algorithm: QL and PageRank data (modeled on previous Comprehensive)
-    // THIS RANKER IS RESPONSIBLE FOR CHOOSING THE CANDIDATE TO EXPAND ON
-    // ... AND WHETHER OR NOT TO EXPAND GIVEN CONDITIONS
-        // 1) not enough results
-        // 2) "reasonably" think its a place
-            // During scoring candidates, vote by majority frequency, winner takes all
-        // Call GeoEntity.getStateName() to resolve
+	// Algorithm: Lucene's Practical TFIDF + PageRank Doc Boosting
 
-	//Goal 1: Improve ranking algorithm: Compare to Lucene: https://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/Similarity.html
+	// Goal 1: Improve ranking algorithm: Compare to Lucene: https://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/Similarity.html
     // SUPPORT BOOLEAN
 	// This only resolves competing city names ...
 	// What I want is:
@@ -31,9 +24,16 @@ import java.util.Vector;
 	// Run expanded query to convert to boolean query
 	// Then, check if it's top X results outperform present results by a margin
 
-	//Goal 2: Suggestion: Suggest to me locations if location is relevant
-	//Penn Station => Newark or New York? 
+	// TODO: Goal 2: Suggestion: Suggest to me locations if location is relevant
+	// Penn Station => Newark or New York? 
 
+	// TODO: Goal 3: Resolve Ambiguous queries
+	// THIS RANKER IS RESPONSIBLE FOR CHOOSING THE CANDIDATE TO EXPAND ON
+	// ... AND WHETHER OR NOT TO EXPAND GIVEN CONDITIONS
+    // 1) not enough results
+    // 2) "reasonably" think its a place
+        // During scoring candidates, vote by majority frequency, winner takes all
+    // Call GeoEntity.getStateName() to resolve
 
     // Needs to be aware of whether or not expansion has already been performed by checking
         // to see if there exists a true value in QBG (read QBG._expanded)
@@ -223,7 +223,13 @@ public class RankerGeoComprehensive extends Ranker {
 	
     		//Get Document Indexed
     		while ((doc = (DocumentIndexed) _indexer.nextDoc(query, docid)) != null) {
-    			double score = scoreDocumentQL(query, doc);
+    			double score = scoreDocument(query, doc);
+    			
+    			if(score == 0) { //Sanity Check
+    				System.out.println("Issue:");
+    				continue;
+    			}
+    			
     			rankQueue.add(new ScoredDocument(doc, score));
     			
     			sum += score;
@@ -252,7 +258,7 @@ public class RankerGeoComprehensive extends Ranker {
 	    return null;
     }
 	
-    //Modify to Lucene's formula: 
+    //Modified to Lucene's formula: 
     //    - https://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/Similarity.html
     //Get Query Likelihood Score
     //Implemented according to: http://www.lucenetutorial.com/advanced-topics/scoring.html
@@ -264,7 +270,7 @@ public class RankerGeoComprehensive extends Ranker {
      * Documents which mention the search terms many times are good
      */
     
-    public Double scoreDocumentQL(QueryBoolGeo query, DocumentIndexed doc) {
+    public Double scoreDocument(QueryBoolGeo query, DocumentIndexed doc) {
     	Double score = 0.0;
 	
     	try {

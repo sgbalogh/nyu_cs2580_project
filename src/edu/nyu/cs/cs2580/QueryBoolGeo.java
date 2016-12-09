@@ -48,7 +48,6 @@ public class QueryBoolGeo extends Query{
         _input_strings = input;
     }
 
-
     // THESE ARE THE METHODS THAT RANKERGEOCOMPREHENSIVE WILL USE:
     public List<String> get_expanded_queries() {
         return _expanded_queries;
@@ -58,9 +57,5 @@ public class QueryBoolGeo extends Query{
     // QUERY STRINGS THAT POPULATE _expanded_queries
     public void expand(int max) {
 
-    }
-    
-    public List<GeoEntity> get_candidate_geo_entities() {
-        return _candidate_geo_entities;
     }
 }

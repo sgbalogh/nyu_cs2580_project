@@ -50,11 +50,6 @@ public class SearchEngine {
     // HW2/HW3: We have a partial Wikipedia dump.
     public String _corpusPrefix = null;
 
-    // The parent path where the log date reside.
-    // HW1/HW2: n/a
-    // HW3: We have a partial Wikipedia visit log dump.
-    public String _logPrefix = null;
-
     // The parent path where the constructed index resides.
     // HW1: n/a
     // HW2/HW3: This is where the index is built into and loaded from.
@@ -65,9 +60,6 @@ public class SearchEngine {
 
     // The specific CorpusAnalyzer to be used.
     public String _corpusAnalyzerType = null;
-
-    // The specific LogMiner to be used.
-    public String _logMinerType = null;
 
     // Additional group specific configuration can be added below.
 
@@ -98,8 +90,7 @@ public class SearchEngine {
       // Populate global options.
       _corpusPrefix = options.get("corpus_prefix");
       Check(_corpusPrefix != null, "Missing option: corpus_prefix!");
-      _logPrefix = options.get("log_prefix");
-      Check(_logPrefix != null, "Missing option: log_prefix!");
+
       _indexPrefix = options.get("index_prefix");
       Check(_indexPrefix != null, "Missing option: index_prefix!");
 
@@ -110,9 +101,6 @@ public class SearchEngine {
       _corpusAnalyzerType = options.get("corpus_analyzer_type");
       Check(_corpusAnalyzerType != null,
           "Missing option: corpus_analyzer_type!");
-
-      _logMinerType = options.get("log_miner_type");
-      Check(_logMinerType != null, "Missing option: log_miner_type!");
     }
   }
   public static Options OPTIONS = null;
