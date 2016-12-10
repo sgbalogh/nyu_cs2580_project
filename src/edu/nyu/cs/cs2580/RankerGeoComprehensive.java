@@ -72,10 +72,10 @@ public class RankerGeoComprehensive extends Ranker {
     }
 
     //Testing
-    public double _orig_threshold = 100.0; //Determines if original score is strong enough not to do expansion
+    public double _orig_threshold = 2.0; //Determines if original score is strong enough not to do expansion
     public double _expanded_threshold = 1.0; //Significant expansion term score threshold
 
-    public int _max_expansion = 5; //Max number of Expansion Terms
+    public int _max_expansion = 3; //Max number of Expansion Terms
 
     //Cache: ~5 expanded terms in cache
     //TODO: Manage Cache memory
@@ -94,94 +94,126 @@ public class RankerGeoComprehensive extends Ranker {
         if(!(init_query instanceof QueryBoolGeo))
             throw new IllegalStateException("Please Use Query Phrase");
 
-        //=============================================
-        // Look Into This: Naive all share the same name
-        //=============================================
         try {
+            //=============================================
+            // Initial Query Run
+            //=============================================
 	        QueryBoolGeo query = (QueryBoolGeo) init_query;
 	        
-	        if(query.get_candidate_geo_entities().size() > 0)
-	        	query._tokens.add(query.get_candidate_geo_entities().get(0).getName());
+	        HashMap<String, Integer> geoTermIndex = new HashMap<>(); //Central Park => 0, Hoboken => 1
+	        //Don't really care about duplicates
 	        
-	        if(init_query._tokens.size() == 0)
+	        boolean supportingTerms = (query._tokens.size() > 0? true: false);
+	        
+	        if(query.get_candidate_geo_entities().size() > 0) {
+	        	//Find indexes of changed values
+	        	int index = query._tokens.size();
+	        	for(GeoEntity ge : query.get_candidate_geo_entities()) {
+		        	query._tokens.add(ge.getName());
+		        	geoTermIndex.put(ge.getName(), index);
+		        	index++;
+	        	}
+	        }
+	        
+	        if(init_query._tokens.size() == 0) //Flat out empty String
 	            return new Vector<ScoredDocument>();
 	
 	        if(query.cache) { //Return cached value
 	            return returnCachedList(query._query, numResults, query.best);
 	        }
 	        
+	        System.out.println(query._tokens.toString());
+	        
 	        ScoredSumTuple origBenchmark = runQuery(query, numResults);
 	        
-	        query._tokens.remove(query._tokens.size() - 1);
-	
-	        //==============================================
 	        System.out.println("Original Finished: " + origBenchmark.scored.size() + " Score: " + (origBenchmark.total_score / origBenchmark.queryNorm));
 	        
 	        StringBuilder logs = new StringBuilder("Orig Term :");
 	        logs.append(query._query).append(" ").append(origBenchmark.total_score).append("\n");
-	
-	        //Determine if orig benchmark is good enough to not expand
-	        if(query.get_candidate_geo_entities().size() > 0 && 
-	        		(origBenchmark.scored.size() < numResults || origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold * numResults)) {
-	            
-	        	System.out.println("Expand");
-	        	//Expand Word
-	            query.expand(_max_expansion);
-	
-	            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
+	        
+		    //=================End of Original Run===================
+	        
+	        //=====================================Ambiguous mode====================================
+	        if(query.get_candidate_geo_entities().size() > 0) {
+	        	//Run uniquify
 	        	
-	            while(expQueryIterator.hasNext()) {
-	
-	                //Create new query:
-	                String cityName = expQueryIterator.next().getName();
-	
-	                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._tokens.toString().replaceAll( "[^A-Za-z0-9]", "") + " " + cityName);
-	                Vector<String> _new_terms = new Vector<>(query._tokens); //Add non location terms
-	                _new_terms.add(cityName);
-	
-	                expandedQuery._tokens = _new_terms;
-	                
-	                System.out.println("Expanded Query: " + expandedQuery._tokens.toString());
-	
-	                ScoredSumTuple newResults = runQuery(expandedQuery , numResults);
-	
-	                //If expansion helps...
-	                double normalizedScore = newResults.total_score / newResults.queryNorm;
-	                
-	                //Log Results:
-	                logs.append(expandedQuery._query).append(": ").append(normalizedScore);
-	
-	                if( normalizedScore > _expanded_threshold
-	                        &&
-	                        normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
-	
-	                    ((QueryBoolGeo) init_query)._should_present = true;
-	
-	                    //cache
-	                    _cache.put(expandedQuery._query, newResults);
-	
-	                    logs.append(": Qualified!\n");
-	                    System.out.println(expandedQuery._query + ": qualified with " + normalizedScore);
-	                } else {
-	                    //Remove expanded term if not qualified
-	                    expQueryIterator.remove();
-	
-	                    logs.append(": Unqualified!\n");
-	                    System.out.println(expandedQuery._query + ": unqualified with " + normalizedScore);
-	                }
-	            }
-	
-	            //Log Expansion queries
-	            if(query._should_present) {
-	                logs.append("Expansion Terms: ");
-	                for(GeoEntity gEnt : query.get_expanded_geo_entities()) {
-	                    logs.append(gEnt.getName()).append(" ");
-	                }
-	                logs.append("\n");
-	            }
-	            
+	        	
+	        } else if(query.get_candidate_geo_entities().size() == 1) {
+	        //=================================Local Expansion Mode===================================
+	        
+		        //Determine if original benchmark is good enough to not expand
+		        if(		supportingTerms //Only expand if supporting terms exist
+		        		&&
+		        		(origBenchmark.scored.size() < numResults 
+		        				|| //Original results not good enough
+		        				origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold * numResults)) {
+		        	System.out.println("Try to Expand");
+		        	
+		        	//Expand Word
+		            query.expand(_max_expansion);
+		
+		            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
+		        	
+		            //Iterator through all nearby cities of each 
+		            while(expQueryIterator.hasNext()) {
+		
+		                //Create new query:
+		                String cityName = expQueryIterator.next().getName();
+		
+		                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._tokens.toString().replaceAll( "[^A-Za-z0-9//s]", "") + " " + cityName);
+		                Vector<String> _new_terms = new Vector<>(query._tokens); //Add non location terms
+		                _new_terms.add(cityName);
+		
+		                expandedQuery._tokens = _new_terms;
+		                
+		                System.out.println("Expanded Query: " + expandedQuery._tokens.toString());
+
+		                ScoredSumTuple newResults = runQuery(expandedQuery , numResults);
+		
+		                //If expansion helps...
+		                double normalizedScore = newResults.total_score / newResults.queryNorm;
+		                if(newResults.total_score == 0)
+		                	normalizedScore = 0.0;
+		                
+		                //Log Results:
+		                logs.append(expandedQuery._query).append(": ").append(normalizedScore);
+		
+		                if( normalizedScore > _expanded_threshold
+		                        &&
+		                        normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
+		
+		                    ((QueryBoolGeo) init_query)._should_present = true;
+		
+		                    //cache
+		                    _cache.put(expandedQuery._query, newResults);
+		
+		                    logs.append(": Qualified!\n");
+		                    System.out.println(expandedQuery._query + ": qualified with " + normalizedScore);
+		                } else {
+		                    //Remove expanded term if not qualified
+		                    expQueryIterator.remove();
+		
+		                    logs.append(": Unqualified!\n");
+		                    System.out.println(expandedQuery._query + ": unqualified with " + normalizedScore);
+		                }
+		            }
+		
+		            //Log Expansion queries
+		            if(query._should_present) {
+		                logs.append("Expansion Terms: ");
+		                for(GeoEntity gEnt : query.get_expanded_geo_entities()) {
+		                    logs.append(gEnt.getName()).append(" ");
+		                }
+		                logs.append("\n");
+		            }
+		            
+		        } else {
+		            //No Expansion
+		            logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
+		                    .append(" Score: ").append(origBenchmark.total_score).append("\n");
+		        }
 	        } else {
-	            //No Expansion
+	            //No Expansion Terms
 	            logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
 	                    .append(" Score: ").append(origBenchmark.total_score).append("\n");
 	        }
@@ -306,7 +338,7 @@ public class RankerGeoComprehensive extends Ranker {
             //Normal Tokens
             for(String term : query._tokens) {
                 int docTermFreq = _indexer.documentTermFrequency(term, doc._docid);
-            	//System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
+            	System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
                 score += docTermFreq * //Term Frequency
                         Math.pow(
                                 (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1
