@@ -19,6 +19,33 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         this._term_search_map = new HashMap<>();
     }
 
+    public static String makeGeoJSON(List<GeoEntity> geoentities) {
+        // NOTE: We assume first GeoEntity in the list is the "primary" one (which was searched by user)
+        if (geoentities.size() > 0) {
+            StringBuilder json = new StringBuilder();
+            json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+            int stop_int = geoentities.size();
+            json.append("{ \"type\": \"Feature\", \"id\": \"")
+                    .append(geoentities.get(0).getId())
+                    .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                    .append(geoentities.get(0).longitude).append(", ").append(geoentities.get(0).latitude).append("]}")
+                    .append(", \"properties\": { \"name\": \"").append(geoentities.get(0).getName())
+                    .append("\", \"type\": \"primary\", \"population\": ").append(geoentities.get(0).population).append("}}");
+            for (int i = 1; i < stop_int; i++) {
+                GeoEntity nearby = geoentities.get(i);
+                json.append(",{ \"type\": \"Feature\", \"id\": \"")
+                        .append(nearby.getId())
+                        .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                        .append(nearby.longitude).append(", ").append(nearby.latitude).append("]}")
+                        .append(", \"properties\": { \"name\": \"").append(nearby.getName())
+                        .append("\", \"type\": \"expanded\", \"population\": ").append(nearby.population).append("}}");
+            }
+            json.append("]}");
+            return json.toString();
+        }
+        return null;
+    }
+
     public boolean addEntityToMap(GeoEntity toAdd) {
         if (_entity_map.containsKey(toAdd.getId())) {
             return false;

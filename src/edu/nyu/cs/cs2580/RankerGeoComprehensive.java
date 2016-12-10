@@ -265,6 +265,9 @@ public class RankerGeoComprehensive extends Ranker {
                     rankQueue.poll();
                 }
                 docid = doc._docid;
+                
+                sum += score;
+                normSum += Math.pow(score, 2);
             }
 
             //Get Results and Store them
@@ -272,8 +275,6 @@ public class RankerGeoComprehensive extends Ranker {
             ScoredDocument scoredDoc = null;
             while ((scoredDoc = rankQueue.poll()) != null) {
                 results.add(scoredDoc);
-                sum += scoredDoc.getScore();
-                normSum += Math.pow(scoredDoc.getScore(), 2);
             }
 
             Collections.sort(results, Collections.reverseOrder());
