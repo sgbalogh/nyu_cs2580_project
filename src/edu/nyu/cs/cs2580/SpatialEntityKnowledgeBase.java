@@ -19,28 +19,21 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         this._term_search_map = new HashMap<>();
     }
 
-    public static String makeGeoJSON(List<GeoEntity> candidates, List<GeoEntity> expansions) {
+    public static String makeGeoJSON(List<GeoEntity> entities) {
         // NOTE: We assume first GeoEntity in the list is the "primary" one (which was searched by user)
-        if (candidates.size() > 0 && expansions.size() > 0) {
-
+        if (entities.size() > 0) {
             StringBuilder json = new StringBuilder();
             json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+            GeoEntity primary = entities.get(0);
+            json.append("{ \"type\": \"Feature\", \"id\": \"")
+                    .append(primary.getId())
+                    .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                    .append(primary.longitude).append(", ").append(primary.latitude).append("]}")
+                    .append(", \"properties\": { \"name\": \"").append(primary.getName())
+                    .append("\", \"type\": \"primary\", \"population\": ").append(primary.population).append("}}");
 
-            for (int i = 0; i < candidates.size(); i++) {
-                GeoEntity candidate = candidates.get(i);
-                if (i != 0) {
-                    json.append(",");
-                }
-                json.append("{ \"type\": \"Feature\", \"id\": \"")
-                        .append(candidate.getId())
-                        .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
-                        .append(candidate.longitude).append(", ").append(candidate.latitude).append("]}")
-                        .append(", \"properties\": { \"name\": \"").append(candidate.getName())
-                        .append("\", \"type\": \"primary\", \"population\": ").append(candidate.population).append("}}");
-            }
-
-            for (int i = 0; i < expansions.size(); i++) {
-                GeoEntity nearby = expansions.get(i);
+            for (int i = 1; i < entities.size(); i++) {
+                GeoEntity nearby = entities.get(i);
                 json.append(",{ \"type\": \"Feature\", \"id\": \"")
                         .append(nearby.getId())
                         .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
@@ -181,4 +174,26 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         return _entity_map.size();
     }
 
+    public static String makeDisambiguateGeoJSON(List<GeoEntity> candidates) {
+        // getUniqueName();
+        if (candidates.size() > 0) {
+            StringBuilder json = new StringBuilder();
+            json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+            for (int i = 0; i < candidates.size(); i++) {
+                GeoEntity entity = candidates.get(i);
+                if (i != 0) {
+                    json.append(",");
+                }
+                json.append("{ \"type\": \"Feature\", \"id\": \"")
+                        .append(entity.getId())
+                        .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                        .append(entity.longitude).append(", ").append(entity.latitude).append("]}")
+                        .append(", \"properties\": { \"name\": \"").append(entity.getName())
+                        .append("\", \"type\": \"candidate\", \"population\": ").append(entity.population).append("}}");
+            }
+            json.append("]}");
+            return json.toString();
+        }
+        return "";
+    }
 }
