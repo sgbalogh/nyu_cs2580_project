@@ -159,14 +159,14 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				int occurrence = 0;
 				for(String word: docWords) {
 					//Stopwords
-					if(stopWords.contains(word)) {
-						continue;
-					}
+					//if(stopWords.contains(word)) {
+					//	continue;
+					//}
 
 					//Stem
-					stemmer.add(word.toCharArray(),word.length());
-					stemmer.stem();
-					word = stemmer.toString();
+					//stemmer.add(word.toCharArray(),word.length());
+					//stemmer.stem();
+					//word = stemmer.toString();
 
 					if(!_dictionary.containsKey(word)) {//unique word
 						int temp_term_id = _dictionary.size();
@@ -281,17 +281,17 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 
 			for(String word: parseDocument(fileEntry)) {
 				//Stopwords
-				if(stopWords.contains(word)) {
-					continue;
-				}
+				//if(stopWords.contains(word)) {
+				//	continue;
+				//}
 
 				//TODO: Look for locations to suggest
 				//for( gkb.getCandidates(term))
 
 				//Stem
-				stemmer.add(word.toCharArray(),word.length());
-				stemmer.stem();
-				word = stemmer.toString();
+				//stemmer.add(word.toCharArray(),word.length());
+				//stemmer.stem();
+				//word = stemmer.toString();
 
 				//Append to Doc buffer
 				int termId = _dictionary.get(word).id;

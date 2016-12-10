@@ -22,8 +22,8 @@ public class LocationParser {
         //Testing
         //TODO: this needs to be able to deal with quotation/phrase searches
         toReturn._tokens = new Vector<>();
-        toReturn._tokens.addAll(Arrays.asList(inputString.split("\\s+")));
-
+        //toReturn._tokens.addAll(Arrays.asList(inputString.split("\\s+")));
+        toReturn._tokens.add(inputString);
 
         return toReturn;
     }

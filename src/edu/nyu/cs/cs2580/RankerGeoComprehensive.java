@@ -2,7 +2,6 @@ package edu.nyu.cs.cs2580;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -14,7 +13,6 @@ import java.util.Vector;
 /**
  * Created by stephen on 12/3/16.
  */
-//TODO: implement this
 //Algorithm: QL and PageRank data (modeled on previous Comprehensive)
 // THIS RANKER IS RESPONSIBLE FOR CHOOSING THE CANDIDATE TO EXPAND ON
 // ... AND WHETHER OR NOT TO EXPAND GIVEN CONDITIONS
@@ -264,7 +262,7 @@ public class RankerGeoComprehensive extends Ranker {
         return null;
     }
 
-    //Modify to Lucene's formula:
+    //Modified to Lucene's formula:
     //    - https://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/Similarity.html
     //Get Query Likelihood Score
     //Implemented according to: http://www.lucenetutorial.com/advanced-topics/scoring.html
@@ -284,18 +282,28 @@ public class RankerGeoComprehensive extends Ranker {
             //Normal Tokens
             for(String term : query._tokens) {
                 int docTermFreq = _indexer.documentTermFrequency(term, doc._docid);
+            	//System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
                 score += docTermFreq * //Term Frequency
                         Math.pow(
-                                (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1)) / Math.log(2)) + 1
+                                (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1
                                 ,2) * //IDF
-                        (1 / Math.sqrt(query._tokens.size())); //lengthNorm
+                        (1 / Math.sqrt(query._tokens.size())); //lengthNorm 
+            	
+            	 //Better Than QL: guatemala
+            	 /* score += Math.log(
+                        //Probability in Document
+                        ((0.8) * _indexer.documentTermFrequency(term, doc._docid) / doc._numWords )
+                                +
+                                //Smoothing
+                                (0.2 * _indexer.corpusTermFrequency(term) / _indexer._totalTermFrequency )
+                	);*/
 
                 //Overlap
                 foundTerms += (docTermFreq > 0? 1:0);
             }
 
             score = score * (1 + doc.getPageRank()) * //multiply by pagerank + 1
-                    (foundTerms / query._tokens.size()); //coord
+            		(foundTerms / query._tokens.size()); //coord
 
         } catch(Exception e) {
             e.printStackTrace();
