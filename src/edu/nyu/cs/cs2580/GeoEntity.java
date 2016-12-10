@@ -45,7 +45,7 @@ public class GeoEntity implements Serializable {
 
     public GeoEntity(Integer id, String primaryName, String type) {
         this.id = id;
-        this.primaryName = primaryName;
+        this.primaryName = primaryName.toLowerCase().trim();
         this.type = type;
         this.children = new LinkedList<>();
         this.nearby = new LinkedList<>();

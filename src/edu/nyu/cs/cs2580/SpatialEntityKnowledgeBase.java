@@ -48,7 +48,8 @@ public class SpatialEntityKnowledgeBase implements Serializable {
                 toAdd.add(entity);
                 _term_search_map.put(key, toAdd);
             }
-            String[] split_key = key.split(" ");
+            //TODO: Determine if this is necessary
+            /*String[] split_key = key.split(" ");
             if (split_key.length > 1) {
                 for (int i = 0; i < split_key.length; i++) {
                     String key_segment = split_key[i];
@@ -60,7 +61,7 @@ public class SpatialEntityKnowledgeBase implements Serializable {
                         _term_search_map.put(key_segment, toAdd);
                     }
                 }
-            }
+            }*/
         }
     }
 

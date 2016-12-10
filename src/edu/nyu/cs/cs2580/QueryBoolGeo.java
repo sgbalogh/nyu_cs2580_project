@@ -23,7 +23,6 @@ public class QueryBoolGeo extends Query{
     // QBG needs to separate original query string from expanded query strings (so that the Ranker
     // can disambiguate between them)
 
-    public List<String> _input_strings; // "jersey city zoo" => {"zoo"} (done in LP)
     private List<GeoEntity> _candidate_geo_entities; // This should hold all candidate GeoEntities for "jersey city"...
     // { Jersey City, NJ ; Jersey City, Utah ; etc..}
     private List<GeoEntity> _expanded_geo_entities;
@@ -37,17 +36,13 @@ public class QueryBoolGeo extends Query{
         super(inputString);
         //DO NOT PROCESS INPUT STRING
         _should_present = false;
-        _input_strings = new ArrayList<>();
         _candidate_geo_entities = new ArrayList<>();
         _expanded_geo_entities = new ArrayList<>();
     }
 
     // THESE ARE THE METHODS THAT LOCATIONPARSER WILL USE :
     public void populateGeoEntities(List<GeoEntity> geoEntities) {
-        _candidate_geo_entities = geoEntities;
-    }
-    public void populateInputStrings(List<String> input) {
-        _input_strings = input;
+        _candidate_geo_entities.addAll(geoEntities);
     }
 
     public List<GeoEntity> get_candidate_geo_entities() {
@@ -64,14 +59,10 @@ public class QueryBoolGeo extends Query{
     // QUERY STRINGS THAT POPULATE _expanded_queries
     //TODO: make sure that max refers to the total number of expanded entities, not total per entity
     public void expand(int max) {
-        if (_candidate_geo_entities.size() > 0) {
-            for (int i = 0; i < max; i++) {
-                ArrayList<GeoEntity> entities = (ArrayList) _candidate_geo_entities.get(i).fullExpand(3);
-                for (GeoEntity entity : entities) {
-                    _expanded_geo_entities.add(entity);
-                }
-            }
+        for (int i = 0; i < Math.min( _candidate_geo_entities.size(), max); i++) {
+        	_expanded_geo_entities.addAll((ArrayList) _candidate_geo_entities.get(i).fullExpand(3));
         }
+        System.out.println("Expanded Size: " + _expanded_geo_entities.size());
     }
 
 }

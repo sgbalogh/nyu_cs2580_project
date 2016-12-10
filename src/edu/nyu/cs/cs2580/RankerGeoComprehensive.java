@@ -71,8 +71,9 @@ public class RankerGeoComprehensive extends Ranker {
         }
     }
 
+    //Testing
     public double _orig_threshold = 100.0; //Determines if original score is strong enough not to do expansion
-    public double _expanded_threshold = 100.0; //Significant expansion term score threshold
+    public double _expanded_threshold = 1.0; //Significant expansion term score threshold
 
     public int _max_expansion = 5; //Max number of Expansion Terms
 
@@ -93,90 +94,113 @@ public class RankerGeoComprehensive extends Ranker {
         if(!(init_query instanceof QueryBoolGeo))
             throw new IllegalStateException("Please Use Query Phrase");
 
-        if(init_query._tokens.size() == 0)
-            return new Vector<ScoredDocument>();
-
-        QueryBoolGeo query = (QueryBoolGeo) init_query;
-
-        if(query.cache) { //Return cached value
-            return returnCachedList(query._query, numResults, query.best);
-        }
-
-        ScoredSumTuple origBenchmark = runQuery(query, numResults);
-
-        System.out.println("Original Finished: " + origBenchmark.scored.size());
-        
-        StringBuilder logs = new StringBuilder("Orig Term :");
-        logs.append(query._query).append(" ").append(origBenchmark.total_score).append("\n");
-
-        //Determine if orig benchmark is good enough to not expand
-        if(origBenchmark.scored.size() < numResults || origBenchmark.total_score < _orig_threshold * numResults) {
-            //Expand Word
-            query.expand(_max_expansion);
-
-            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
-        	
-            while(expQueryIterator.hasNext()) {
-
-                //Create new query:
-                String cityName = expQueryIterator.next().getName();
-
-                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._tokens.toString().replaceAll( "[^A-Za-z0-9]", "") + " " + cityName);
-                Vector<String> _non_location = query._tokens;
-                _non_location.add(cityName);
-
-                expandedQuery.populateInputStrings(query._tokens);
-
-                ScoredSumTuple newResults = runQuery(expandedQuery , numResults);
-
-                //Log Results:
-                logs.append(expandedQuery._query).append(": ").append(newResults.total_score);
-
-                //If expansion helps...
-                double normalizedScore = newResults.total_score / newResults.queryNorm;
-                if( normalizedScore > (_expanded_threshold * numResults)
-                        &&
-                        normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
-
-                    ((QueryBoolGeo) init_query)._should_present = true;
-
-                    //cache
-                    _cache.put(expandedQuery._query, newResults);
-
-                    logs.append(": Qualified!\n");
-                } else {
-                    //Remove expanded term if not qualified
-                    expQueryIterator.remove();
-
-                    logs.append(": Unqualified!\n");
-                }
-            }
-
-            //Log Expansion queries
-            if(query._should_present) {
-                logs.append("Expansion Terms: ");
-                for(GeoEntity gEnt : query.get_expanded_geo_entities()) {
-                    logs.append(gEnt.getName()).append(" ");
-                }
-                logs.append("\n");
-            }
-            
-        } else {
-            //No Expansion
-            logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
-                    .append(" Score: ").append(origBenchmark.total_score).append("\n");
-        }
-
-        //Flush Log
+        //=============================================
+        // Look Into This: Naive all share the same name
+        //=============================================
         try {
-            BufferedWriter br = new BufferedWriter(new FileWriter("rankerDecision.txt"));
-            br.write(logs.toString());
-            br.close();
-        } catch(Exception e) {
-            e.printStackTrace();
+	        QueryBoolGeo query = (QueryBoolGeo) init_query;
+	        
+	        if(query.get_candidate_geo_entities().size() > 0)
+	        	query._tokens.add(query.get_candidate_geo_entities().get(0).getName());
+	        
+	        if(init_query._tokens.size() == 0)
+	            return new Vector<ScoredDocument>();
+	
+	        if(query.cache) { //Return cached value
+	            return returnCachedList(query._query, numResults, query.best);
+	        }
+	        
+	        ScoredSumTuple origBenchmark = runQuery(query, numResults);
+	        
+	        query._tokens.remove(query._tokens.size() - 1);
+	
+	        //==============================================
+	        System.out.println("Original Finished: " + origBenchmark.scored.size() + " Score: " + (origBenchmark.total_score / origBenchmark.queryNorm));
+	        
+	        StringBuilder logs = new StringBuilder("Orig Term :");
+	        logs.append(query._query).append(" ").append(origBenchmark.total_score).append("\n");
+	
+	        //Determine if orig benchmark is good enough to not expand
+	        if(query.get_candidate_geo_entities().size() > 0 && 
+	        		(origBenchmark.scored.size() < numResults || origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold * numResults)) {
+	            
+	        	System.out.println("Expand");
+	        	//Expand Word
+	            query.expand(_max_expansion);
+	
+	            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
+	        	
+	            while(expQueryIterator.hasNext()) {
+	
+	                //Create new query:
+	                String cityName = expQueryIterator.next().getName();
+	
+	                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._tokens.toString().replaceAll( "[^A-Za-z0-9]", "") + " " + cityName);
+	                Vector<String> _new_terms = new Vector<>(query._tokens); //Add non location terms
+	                _new_terms.add(cityName);
+	
+	                expandedQuery._tokens = _new_terms;
+	                
+	                System.out.println("Expanded Query: " + expandedQuery._tokens.toString());
+	
+	                ScoredSumTuple newResults = runQuery(expandedQuery , numResults);
+	
+	                //If expansion helps...
+	                double normalizedScore = newResults.total_score / newResults.queryNorm;
+	                
+	                //Log Results:
+	                logs.append(expandedQuery._query).append(": ").append(normalizedScore);
+	
+	                if( normalizedScore > _expanded_threshold
+	                        &&
+	                        normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
+	
+	                    ((QueryBoolGeo) init_query)._should_present = true;
+	
+	                    //cache
+	                    _cache.put(expandedQuery._query, newResults);
+	
+	                    logs.append(": Qualified!\n");
+	                    System.out.println(expandedQuery._query + ": qualified with " + normalizedScore);
+	                } else {
+	                    //Remove expanded term if not qualified
+	                    expQueryIterator.remove();
+	
+	                    logs.append(": Unqualified!\n");
+	                    System.out.println(expandedQuery._query + ": unqualified with " + normalizedScore);
+	                }
+	            }
+	
+	            //Log Expansion queries
+	            if(query._should_present) {
+	                logs.append("Expansion Terms: ");
+	                for(GeoEntity gEnt : query.get_expanded_geo_entities()) {
+	                    logs.append(gEnt.getName()).append(" ");
+	                }
+	                logs.append("\n");
+	            }
+	            
+	        } else {
+	            //No Expansion
+	            logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
+	                    .append(" Score: ").append(origBenchmark.total_score).append("\n");
+	        }
+	
+	        //Flush Log
+	        try {
+	            BufferedWriter br = new BufferedWriter(new FileWriter("rankerDecision.txt", true));
+	            br.write(logs.toString());
+	            br.close();
+	        } catch(Exception e) {
+	            e.printStackTrace();
+	        }
+	        
+	        return origBenchmark.scored;
+        } catch (Exception e) {
+        	e.printStackTrace();
         }
 
-        return origBenchmark.scored;
+        return null;
     }
 
     //Return Vector of Scored docs from cache
@@ -236,9 +260,6 @@ public class RankerGeoComprehensive extends Ranker {
                 double score = scoreDocumentQL(query, doc);
                 rankQueue.add(new ScoredDocument(doc, score));
 
-                sum += score;
-                normSum += Math.pow(score, 2);
-
                 //Make sure top X documents are in memory
                 if (rankQueue.size() > numResults) {
                     rankQueue.poll();
@@ -251,6 +272,8 @@ public class RankerGeoComprehensive extends Ranker {
             ScoredDocument scoredDoc = null;
             while ((scoredDoc = rankQueue.poll()) != null) {
                 results.add(scoredDoc);
+                sum += scoredDoc.getScore();
+                normSum += Math.pow(scoredDoc.getScore(), 2);
             }
 
             Collections.sort(results, Collections.reverseOrder());
