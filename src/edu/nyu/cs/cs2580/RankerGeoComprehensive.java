@@ -109,8 +109,10 @@ public class RankerGeoComprehensive extends Ranker {
 	        	//Find indexes of changed values
 	        	int index = query._tokens.size();
 	        	for(GeoEntity ge : query.get_candidate_geo_entities()) {
-		        	query._tokens.add(ge.getName());
-		        	geoTermIndex.put(ge.getName(), index);
+	        		
+	        		String cleanedName = ge.getName().toLowerCase().trim();
+		        	query._tokens.add(cleanedName);
+		        	geoTermIndex.put(cleanedName, index);
 		        	index++;
 	        	}
 	        }
@@ -130,14 +132,13 @@ public class RankerGeoComprehensive extends Ranker {
 	        
 	        StringBuilder logs = new StringBuilder("Orig Term :");
 	        logs.append(query._query).append(" ").append(origBenchmark.total_score).append("\n");
-	        
+   
 		    //=================End of Original Run===================
 	        
 	        //=====================================Ambiguous mode====================================
 	        if(query.get_candidate_geo_entities().size() > 0) {
 	        	//Run uniquify
-	        	
-	        	
+     	
 	        } else if(query.get_candidate_geo_entities().size() == 1) {
 	        //=================================Local Expansion Mode===================================
 	        
@@ -182,7 +183,7 @@ public class RankerGeoComprehensive extends Ranker {
 		                        &&
 		                        normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
 		
-		                    ((QueryBoolGeo) init_query)._should_present = true;
+		                    ((QueryBoolGeo) init_query)._presentation_mode = GEO_MODE.EXPANSION;
 		
 		                    //cache
 		                    _cache.put(expandedQuery._query, newResults);
@@ -199,7 +200,7 @@ public class RankerGeoComprehensive extends Ranker {
 		            }
 		
 		            //Log Expansion queries
-		            if(query._should_present) {
+		            if(query._presentation_mode.equals(GEO_MODE.EXPANSION)) {
 		                logs.append("Expansion Terms: ");
 		                for(GeoEntity gEnt : query.get_expanded_geo_entities()) {
 		                    logs.append(gEnt.getName()).append(" ");

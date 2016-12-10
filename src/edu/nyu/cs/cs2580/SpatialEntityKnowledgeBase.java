@@ -19,20 +19,28 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         this._term_search_map = new HashMap<>();
     }
 
-    public static String makeGeoJSON(List<GeoEntity> geoentities) {
+    public static String makeGeoJSON(List<GeoEntity> candidates, List<GeoEntity> expansions) {
         // NOTE: We assume first GeoEntity in the list is the "primary" one (which was searched by user)
-        if (geoentities.size() > 0) {
+        if (candidates.size() > 0 && expansions.size() > 0) {
+
             StringBuilder json = new StringBuilder();
             json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
-            int stop_int = geoentities.size();
-            json.append("{ \"type\": \"Feature\", \"id\": \"")
-                    .append(geoentities.get(0).getId())
-                    .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
-                    .append(geoentities.get(0).longitude).append(", ").append(geoentities.get(0).latitude).append("]}")
-                    .append(", \"properties\": { \"name\": \"").append(geoentities.get(0).getName())
-                    .append("\", \"type\": \"primary\", \"population\": ").append(geoentities.get(0).population).append("}}");
-            for (int i = 1; i < stop_int; i++) {
-                GeoEntity nearby = geoentities.get(i);
+
+            for (int i = 0; i < candidates.size(); i++) {
+                GeoEntity candidate = candidates.get(i);
+                if (i != 0) {
+                    json.append(",");
+                }
+                json.append("{ \"type\": \"Feature\", \"id\": \"")
+                        .append(candidate.getId())
+                        .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                        .append(candidate.longitude).append(", ").append(candidate.latitude).append("]}")
+                        .append(", \"properties\": { \"name\": \"").append(candidate.getName())
+                        .append("\", \"type\": \"primary\", \"population\": ").append(candidate.population).append("}}");
+            }
+
+            for (int i = 0; i < expansions.size(); i++) {
+                GeoEntity nearby = expansions.get(i);
                 json.append(",{ \"type\": \"Feature\", \"id\": \"")
                         .append(nearby.getId())
                         .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
