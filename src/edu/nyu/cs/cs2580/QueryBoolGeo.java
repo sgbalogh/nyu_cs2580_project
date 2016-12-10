@@ -34,7 +34,7 @@ public class QueryBoolGeo extends Query{
     public boolean cache = false;
     public boolean best = false;
     
-    public HashMap<Integer, String> _ambiguous_candidates;
+    public HashMap<Integer, GeoEntity> _ambiguous_candidates;
 
     public QueryBoolGeo(String inputString) {
         super(inputString);
@@ -99,11 +99,12 @@ public class QueryBoolGeo extends Query{
         return toReturn;
         */
 
-        HashMap<Integer, String> toReturn = new HashMap<>();
+        _ambiguous_candidates = new HashMap<>();
         for (String key : names.keySet()) {
-            toReturn.put(names.get(key).get(0).getId(), key.toLowerCase().trim());
+        	GeoEntity ge = names.get(key).get(0);
+        	ge.setUniqueName(key.toLowerCase().trim());
+        	_ambiguous_candidates.put(names.get(key).get(0).getId(), ge);
         }
-        this._ambiguous_candidates = toReturn;
     }
 
     // THESE ARE THE METHODS THAT LOCATIONPARSER WILL USE :
@@ -126,7 +127,7 @@ public class QueryBoolGeo extends Query{
     //TODO: make sure that max refers to the total number of expanded entities, not total per entity
     public void expand(int max) {
         for (int i = 0; i < Math.min( _candidate_geo_entities.size(), max); i++) {
-        	_expanded_geo_entities.addAll((ArrayList) _candidate_geo_entities.get(i).fullExpand(3));
+        	_expanded_geo_entities.addAll((ArrayList) _candidate_geo_entities.get(i).fullExpand(max));
         }
         System.out.println("Expanded Size: " + _expanded_geo_entities.size());
     }

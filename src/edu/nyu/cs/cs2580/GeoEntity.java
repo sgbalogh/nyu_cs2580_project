@@ -15,6 +15,11 @@ public class GeoEntity implements Serializable {
     private Integer id;
 
     private String primaryName;
+    
+    //========================
+    //Unique Name
+    //=======================
+    private String uniqueName;
 
     public String countryCode;
 
@@ -184,6 +189,16 @@ public class GeoEntity implements Serializable {
         }
         return null;
     }
+
+
+	public String getUniqueName() {
+		return uniqueName;
+	}
+
+
+	public void setUniqueName(String uniqueName) {
+		this.uniqueName = uniqueName;
+	}
 
 
 }
