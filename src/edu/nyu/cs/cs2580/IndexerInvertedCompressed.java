@@ -656,7 +656,11 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 			return count;
 		}
 
-		return _dictionary.get(term).corpFreq;
+		if (_dictionary.containsKey(term)) {
+			return _dictionary.get(term).corpFreq;
+		} else {
+			return 0;
+		}
 	}
 
 	@Override
