@@ -1,6 +1,7 @@
 package edu.nyu.cs.cs2580;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -31,6 +32,7 @@ public class QueryBoolGeo extends Query{
     //TODO Need to introduce cache flag which returns cached value and best which returns merged form
     public boolean cache = false;
     public boolean best = false;
+    public HashMap<Integer, String> _ambiguous_candidates;
 
     public QueryBoolGeo(String inputString) {
         super(inputString);
@@ -38,6 +40,69 @@ public class QueryBoolGeo extends Query{
         _should_present = false;
         _candidate_geo_entities = new ArrayList<>();
         _expanded_geo_entities = new ArrayList<>();
+    }
+
+
+    public void uniqify(List<GeoEntity> input) {
+        int level = 0;
+        HashMap<String, List<GeoEntity>> names = new HashMap<>();
+
+        for (GeoEntity entity : input) {
+            String entity_name = entity.getName().toLowerCase().trim();
+            if (names.containsKey(entity_name)) {
+                names.get(entity_name).add(entity);
+            } else {
+                List<GeoEntity> toAdd = new ArrayList<>();
+                toAdd.add(entity);
+                names.put(entity_name, toAdd);
+            }
+        }
+
+        while (names.size() < input.size() && level < 3) {
+            HashMap<String, List<GeoEntity>> temp = new HashMap<>();
+            for (String key : names.keySet()) {
+                List<GeoEntity> list = names.get(key);
+                if (list.size() > 1) {
+                    for (GeoEntity ge : list) {
+                        String expanded_name;
+                        if (level == 0){
+                            expanded_name = ge.getName() + " " + ge.getStateName();
+                        } else {
+                            expanded_name = ge.getName() + " " + ge.getCountyName() + " " + ge.getStateName();
+                        }
+                        if (temp.containsKey(expanded_name)) {
+                            temp.get(expanded_name).add(ge);
+                        } else {
+                            List<GeoEntity> tempToAdd = new ArrayList<>();
+                            tempToAdd.add(ge);
+                            temp.put(expanded_name, tempToAdd);
+                        }
+                    }
+                } else {
+                    temp.put(key, list);
+                }
+
+            }
+            names = temp;
+            level++;
+        }
+
+        // At this point, names should be a hashmap with as many keys as there are input GEs,
+        // so we can easily convert it into a hashmap from string to a single GeoEntity
+
+        /*
+        HashMap<String, GeoEntity> toReturn = new HashMap<>();
+        for ( String key : names.keySet()) {
+            toReturn.put(key, names.get(key).get(0));
+        }
+        return toReturn;
+        */
+
+        HashMap<Integer, String> toReturn = new HashMap<>();
+        for (String key : names.keySet()) {
+            toReturn.put(names.get(key).get(0).getId(), key.toLowerCase().trim());
+        }
+        this._ambiguous_candidates = toReturn;
     }
 
     // THESE ARE THE METHODS THAT LOCATIONPARSER WILL USE :

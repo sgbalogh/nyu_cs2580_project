@@ -2,6 +2,7 @@ package edu.nyu.cs.cs2580;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -45,11 +46,12 @@ public class GeoEntity implements Serializable {
 
     public GeoEntity(Integer id, String primaryName, String type) {
         this.id = id;
-        this.primaryName = primaryName.toLowerCase().trim();
+        this.primaryName = primaryName;
         this.type = type;
         this.children = new LinkedList<>();
         this.nearby = new LinkedList<>();
     }
+
 
     public Integer getId() {
         return this.id;
@@ -112,6 +114,26 @@ public class GeoEntity implements Serializable {
             toReturn = this;
         } else if (this.type.equals("CITY")) {
             toReturn = this.parent.getCounty();
+        }
+        return toReturn;
+    }
+
+    public String getStateName() {
+        String toReturn = null;
+        if (this.type.equals("STATE")) {
+            toReturn = this.getName();
+        } else if (this.type.equals("CITY") || this.type.equals("COUNTY")) {
+            toReturn = this.parent.getStateName();
+        }
+        return toReturn;
+    }
+
+    public String getCountyName() {
+        String toReturn = null;
+        if (this.type.equals("COUNTY")) {
+            toReturn = this.getName();
+        } else if (this.type.equals("CITY")) {
+            toReturn = this.parent.getCountyName();
         }
         return toReturn;
     }

@@ -396,6 +396,8 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 
 			//Get File
 			if(lastFile != updateTerm.file) {
+				if(raIndFile != null)
+					raIndFile.close();
 				raIndFile = new RandomAccessFile(_postings_list_dir + Integer.toString(updateTerm.file), "rw");
 				lastFile = updateTerm.file;
 			}
@@ -407,7 +409,10 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				raIndFile.seek(updateTerm.lastbyte);
 				updateTerm.lastbyte++;
 			}
+
 		}
+
+		raIndFile.close();
 
 		//Clean Buffer
 		buffer.clear();

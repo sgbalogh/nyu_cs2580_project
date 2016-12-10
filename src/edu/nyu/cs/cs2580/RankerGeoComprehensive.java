@@ -101,7 +101,7 @@ public class RankerGeoComprehensive extends Ranker {
 	        QueryBoolGeo query = (QueryBoolGeo) init_query;
 	        
 	        if(query.get_candidate_geo_entities().size() > 0)
-	        	query._tokens.add(query.get_candidate_geo_entities().get(0).getName());
+	        	query._tokens.add(query.get_candidate_geo_entities().get(0).getName().toLowerCase().trim());
 	        
 	        if(init_query._tokens.size() == 0)
 	            return new Vector<ScoredDocument>();
@@ -129,11 +129,13 @@ public class RankerGeoComprehensive extends Ranker {
 	            query.expand(_max_expansion);
 	
 	            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
+
+                HashMap<String, Double> expandedScores = new HashMap<>();
 	        	
 	            while(expQueryIterator.hasNext()) {
 	
 	                //Create new query:
-	                String cityName = expQueryIterator.next().getName();
+	                String cityName = expQueryIterator.next().getName().toLowerCase().trim();
 	
 	                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._tokens.toString().replaceAll( "[^A-Za-z0-9]", "") + " " + cityName);
 	                Vector<String> _new_terms = new Vector<>(query._tokens); //Add non location terms
@@ -159,6 +161,8 @@ public class RankerGeoComprehensive extends Ranker {
 	
 	                    //cache
 	                    _cache.put(expandedQuery._query, newResults);
+
+                        expandedScores.put(cityName, normalizedScore);
 	
 	                    logs.append(": Qualified!\n");
 	                    System.out.println(expandedQuery._query + ": qualified with " + normalizedScore);
@@ -170,6 +174,15 @@ public class RankerGeoComprehensive extends Ranker {
 	                    System.out.println(expandedQuery._query + ": unqualified with " + normalizedScore);
 	                }
 	            }
+
+	            //Sorts expanded queries by their scores
+	            query.get_expanded_geo_entities().sort(new Comparator<GeoEntity>() {
+                    @Override
+                    public int compare(GeoEntity o1, GeoEntity o2) {
+                        return Double.compare(expandedScores.get(o2.getName().toLowerCase().trim()),
+                                expandedScores.get(o2.getName().toLowerCase().trim()));
+                    }
+                });
 	
 	            //Log Expansion queries
 	            if(query._should_present) {

@@ -1,5 +1,6 @@
 package edu.nyu.cs.cs2580;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
@@ -32,8 +33,13 @@ public class HtmlGenerator {
         createNonSpatialBody();
     }
 
+    private String generateGeoJSON() {
+        return SpatialEntityKnowledgeBase.makeGeoJSON(qbg.get_candidate_geo_entities(), qbg.get_expanded_geo_entities());
+    }
+
     private void constructSpatial() {
         createSpatialHead();
+        createSpatialBody();
     }
 
     private void createNonSpatialBody() {
@@ -212,6 +218,7 @@ public class HtmlGenerator {
             builder.append(doc.asHtmlResult());
         }
 
+
         builder.append("</tbody>\n" +
                 "        </table>\n" +
                 "    </div>\n" +
@@ -231,6 +238,75 @@ public class HtmlGenerator {
                 "\n" +
                 "\n" +
                 "</div>");
+        builder.append("</div>\n" +
+                "\n" +
+                "<script>\n" +
+                "\n" +
+                "    var geojson = ");
+        builder.append(this.generateGeoJSON());
+        builder.append(";\n" +
+                "\n" +
+                "    var tiles = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {\n" +
+                "        attribution: '&copy; <a href=\"http://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors, &copy; <a href=\"https://carto.com/attributions\">CARTO</a>',\n" +
+                "        detectRetina: true\n" +
+                "    });\n" +
+                "\n" +
+                "    var latlng = L.latLng(40.7, -74);\n" +
+                "\n" +
+                "    var map = L.map('map', {center: latlng, zoom: 7, layers: [tiles]}).fitBounds(L.geoJSON(geojson).getBounds());\n" +
+                "\n" +
+                "\n" +
+                "    var marker_primary = {\n" +
+                "        radius: 20,\n" +
+                "        fillColor: \"#03993f\",\n" +
+                "        color: \"#00471c\",\n" +
+                "        weight: 3,\n" +
+                "        opacity: .6,\n" +
+                "        fillOpacity: 0.8\n" +
+                "    };\n" +
+                "\n" +
+                "    var marker_expanded = {\n" +
+                "        radius: 15,\n" +
+                "        fillColor: \"#6098ff\",\n" +
+                "        color: \"#6098ff\",\n" +
+                "        weight: 2,\n" +
+                "        opacity: .8,\n" +
+                "        fillOpacity: 0.8\n" +
+                "    };\n" +
+                "    //L.circle([ -90.19789, 38.62727], 50000).addTo(map);\n" +
+                "    L.geoJSON(geojson, {\n" +
+                "        pointToLayer: function (feature, latlng) {\n" +
+                "            switch (feature.properties.type) {\n" +
+                "                case \"primary\":\n" +
+                "                {\n" +
+                "                    return L.circleMarker(latlng, marker_primary)\n" +
+                "                }\n" +
+                "                    ;\n" +
+                "                case \"expanded\":\n" +
+                "                {\n" +
+                "                    return L.circleMarker(latlng, marker_expanded)\n" +
+                "                }\n" +
+                "            }\n" +
+                "        },\n" +
+                "        onEachFeature: function (feature, layer) {\n" +
+                "            layer.bindPopup(feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name);\n" +
+                "            layer.on('mouseover', function (e) {\n" +
+                "                this.openPopup();\n" +
+                "            });\n" +
+                "            layer.on('mouseout', function (e) {\n" +
+                "                this.closePopup();\n" +
+                "            });\n" +
+                "            layer.on('click', function (e) {\n" +
+                "                window.location.href = \"./search?hi there\"\n" +
+                "            })\n" +
+                "        }\n" +
+                "    }).addTo(map);\n" +
+                "\n" +
+                "</script>\n" +
+                "\n" +
+                "\n" +
+                "</body>\n" +
+                "</html>");
 
     }
 
