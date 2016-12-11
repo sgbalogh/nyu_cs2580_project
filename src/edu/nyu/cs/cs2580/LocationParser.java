@@ -8,7 +8,7 @@ public class LocationParser {
 
 	private SpatialEntityKnowledgeBase _gkb;
 	private Indexer _indexer;
-	private List<String> listOfCandidateLocation = new ArrayList<>();
+	private Map<String,Integer> listOfCandidateLocation = new HashMap<>();
 	private QueryBoolGeo toReturn;
 	public LocationParser(Indexer indexer, SpatialEntityKnowledgeBase gkb) {
 		_indexer = indexer;
@@ -23,7 +23,10 @@ public class LocationParser {
 		System.out.println(givenQuery);
 		String[] tokens = givenQuery.split("\\s+");
 		int length = tokens.length;
-
+		int[] id = new int[length];
+		for(int i=0; i<length; i++){
+			id[i]=i;
+		}
 
 
 
@@ -76,18 +79,18 @@ public class LocationParser {
 		}
 
 		if(length == 1){
-			listOfCandidateLocation.add(tokens[0]);
+			listOfCandidateLocation.put(tokens[0],0);
 		}
 		else if(length == 2){
 			int fre1 = _indexer.corpusTermFrequency(tokens[0]);
 			int fre2 = _indexer.corpusTermFrequency(tokens[1]);
 			int fre3 = _indexer.corpusTermFrequency(tokens[0] + tokens[1]);
 			if(fre3>freq2 && fre3>freq2){
-				listOfCandidateLocation.add(tokens[0] +" " + tokens[1]);
+				listOfCandidateLocation.put(tokens[0] +" " + tokens[1],1);
 			}
 			else{
-				listOfCandidateLocation.add(tokens[0]);
-				listOfCandidateLocation.add(tokens[1]);
+				listOfCandidateLocation.put(tokens[0],0);
+				listOfCandidateLocation.put(tokens[1],1);
 			}
 		}
 
@@ -97,20 +100,20 @@ public class LocationParser {
 			int fre3= _indexer.corpusTermFrequency(tokens[0] + " "+ tokens[1]);
 			int fre4= _indexer.corpusTermFrequency(tokens[1] + " "+ tokens[2]);
 			if(freqWhole> fre3 && freqWhole>fre4){
-				listOfCandidateLocation.add(tokens[0] + " " + tokens[1] + " "+ tokens[2]);
+				listOfCandidateLocation.put(tokens[0] + " " + tokens[1] + " "+ tokens[2],2);
 			}
 			else if(fre3 > fre4){
-				listOfCandidateLocation.add(tokens[0] + " "+ tokens[1]);
-				listOfCandidateLocation.add(tokens[2]);
+				listOfCandidateLocation.put(tokens[0] + " "+ tokens[1],1);
+				listOfCandidateLocation.put(tokens[2],2);
 			}
 			else if (fre3 < fre4){
-				listOfCandidateLocation.add(tokens[0]);
-				listOfCandidateLocation.add(tokens[1] + " " +tokens[2]);
+				listOfCandidateLocation.put(tokens[0],0);
+				listOfCandidateLocation.put(tokens[1] + " " +tokens[2],2);
 			}
 			else if(fre3 == fre4) {
-				listOfCandidateLocation.add(tokens[0]);
-				listOfCandidateLocation.add(tokens[1]);
-				listOfCandidateLocation.add(tokens[2]);
+				listOfCandidateLocation.put(tokens[0],0);
+				listOfCandidateLocation.put(tokens[1],1);
+				listOfCandidateLocation.put(tokens[2],2);
 			}
 
 		}
@@ -118,17 +121,20 @@ public class LocationParser {
 		else {
 			int flag=0;
 			String pendingToken = tokens[0];
+			int pendingLastId=0;
 			for (int i = 0; i < (length - 1); i++) {
 				if (spaces[i] == 0) {
 					pendingToken += " " + tokens[i + 1];
+					pendingLastId = id[i+1];
 					if(i == length-2 ){
 						flag=1;
 					}
 				} else {
-					listOfCandidateLocation.add(pendingToken);
+					listOfCandidateLocation.put(pendingToken,pendingLastId);
 					System.out.println("sizeD: "+ listOfCandidateLocation.size());
 
 					pendingToken = tokens[i + 1];
+					pendingLastId = id[i+1];
 
 					//flag=1;
 				}
@@ -140,13 +146,13 @@ public class LocationParser {
 			//	pendingToken=tokens[length - 1];
 			//}
 
-			listOfCandidateLocation.add(pendingToken);
+			listOfCandidateLocation.put(pendingToken,pendingLastId);
 			System.out.println("sizeC: "+ listOfCandidateLocation.size());
 		}
 
 		System.out.println("size: "+ listOfCandidateLocation.size());
-		for(int i=0; i<listOfCandidateLocation.size(); i++){
-			System.out.println("here...: "+listOfCandidateLocation.get(i));
+		for(Map.Entry<String,Integer> entry: listOfCandidateLocation.entrySet()){
+			System.out.println("string: "+ entry.getKey()+" pendingId: "+entry.getValue());
 		}
 
 		return forEachSegments();
@@ -158,19 +164,19 @@ public class LocationParser {
 		List<String> location_terms_string = new ArrayList<>();
 		Vector<String> non_location_terms = new Vector<>();
 		//System.out.println("entered forEachSegments");
-		for(String s: listOfCandidateLocation){
+		for(Map.Entry<String,Integer> entry: listOfCandidateLocation.entrySet()){
 			System.out.println("in for");
 			//List<GeoEntity> localList = _gkb.getCandidates(s);
-			if(_gkb.getCandidates(s).isEmpty()){
+			if(_gkb.getCandidates(entry.getKey()).isEmpty()){
 				System.out.println("in if");
-				non_location_terms.add(s);
-				System.out.println("tokenA: "+s);
+				non_location_terms.add(entry.getKey());
+				System.out.println("tokenA: "+entry.getKey());
 
 			}
 			else{
 				System.out.println("in for");
-				location_terms_string.add(s);
-				System.out.println("tokenB: "+s);
+				location_terms_string.add(entry.getKey());
+				System.out.println("tokenB: "+entry.getKey());
 				//for(GeoEntity g: localList) {
 				//    location_terms.add(g);
 				//}
@@ -186,26 +192,35 @@ public class LocationParser {
 		int index = 0;
 		for(int i=0; i< size1; i++){
 			for(int j=0; j<size2; j++){
-				dummy = location_terms_string.get(i) +" "+ non_location_terms.get(index);
-				System.out.println("dummy: "+dummy);
-				List<GeoEntity> localList = _gkb.getCandidates(dummy);
-				if(!localList.isEmpty()){
-					location_terms_string.set(i, dummy);
-					for(GeoEntity g: localList){
-						location_terms.add(g);
+
+
+					dummy = location_terms_string.get(i) + " " + non_location_terms.get(index);
+					System.out.println("dummy: " + dummy);
+					List<GeoEntity> localList = _gkb.getCandidates(dummy);
+					if (!localList.isEmpty()) {
+						if(listOfCandidateLocation.get(location_terms_string.get(i)) < listOfCandidateLocation.get(non_location_terms.get(index))) {
+							System.out.println("hereA");
+							location_terms_string.set(i, dummy);
+							for (GeoEntity g : localList) {
+								location_terms.add(g);
+							}
+							System.out.println("hereB");
+							non_location_terms.remove(non_location_terms.get(index));
+						}
+					} else {
+						System.out.println("hereC");
+						localList = _gkb.getCandidates(location_terms_string.get(i));
+						for (GeoEntity g : localList) {
+							location_terms.add(g);
+						}
+						System.out.println("in else...");
+						index += 1;
+						System.out.println(index);
+						System.out.println("hereD");
 					}
-					non_location_terms.remove(non_location_terms.get(index));
-				}
-				else{
-					localList = _gkb.getCandidates(location_terms_string.get(i));
-					for(GeoEntity g: localList){
-						location_terms.add(g);
-					}
-					System.out.println("in else...");
-					index += 1;
-					System.out.println(index);
-				}
-				dummy="";
+					dummy = "";
+
+
 			}
 
 		}
@@ -217,19 +232,22 @@ public class LocationParser {
 		int[] indexesToRemove = new int[size3];
 		for(int i=0; i<size3; i++){
 			for(int j=0; j<size3; j++){
-				dummy = non_location_terms.get(i) +" "+ non_location_terms.get(j);
-				//System.out.println("dummy: "+dummy);
-				List<GeoEntity> localList = _gkb.getCandidates(dummy);
-				if(!localList.isEmpty()){
-					location_terms_string.add(dummy);
-					for(GeoEntity g: localList) {
-						location_terms.add(g);
+
+					dummy = non_location_terms.get(i) + " " + non_location_terms.get(j);
+					//System.out.println("dummy: "+dummy);
+					List<GeoEntity> localList = _gkb.getCandidates(dummy);
+					if (!localList.isEmpty()) {
+						if (listOfCandidateLocation.get(non_location_terms.get(i)) < listOfCandidateLocation.get(non_location_terms.get(j))) {
+							location_terms_string.add(dummy);
+							for (GeoEntity g : localList) {
+								location_terms.add(g);
+							}
+							indexesToRemove[index2] = i;
+							index2 += 1;
+							indexesToRemove[index2] = j;
+							index2 += 1;
+						}
 					}
-					indexesToRemove[index2] = i;
-					index2 += 1;
-					indexesToRemove[index2] = j;
-					index2 += 1;
-				}
 			}
 		}
 
@@ -250,8 +268,8 @@ public class LocationParser {
 		toReturn._tokens = non_location_terms;
 		toReturn.populateGeoEntities(location_terms);
 
-		location_terms_string.clear();
-		non_location_terms.clear();
+		//location_terms_string.clear();
+		//non_location_terms.clear();
 		listOfCandidateLocation.clear();
 		//Vector<String> temp = new Vector<>();
 		//temp.add("new york");
