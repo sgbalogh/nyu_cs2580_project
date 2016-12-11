@@ -110,10 +110,14 @@ class QueryHandler implements HttpHandler {
           throws IOException {
     Headers responseHeaders = exchange.getResponseHeaders();
     responseHeaders.set("Content-Type", "text/plain");
-    exchange.sendResponseHeaders(200, 0); // arbitrary number of bytes
-    OutputStream responseBody = exchange.getResponseBody();
-    responseBody.write(message.getBytes());
-    responseBody.close();
+    try {
+      exchange.sendResponseHeaders(200, 0); // arbitrary number of bytes
+      OutputStream responseBody = exchange.getResponseBody();
+      responseBody.write(message.getBytes());
+      responseBody.close();
+    } catch (Exception e) {
+      System.out.println("Unknown HTTP error...");
+    }
   }
 
   private void respondWithTSVFile(String ranker, final String message, HttpExchange exchange) throws IOException {
@@ -146,12 +150,6 @@ class QueryHandler implements HttpHandler {
     responseBody.write(message.getBytes());
     responseBody.close();
   }
-
-  //TODO: create map from data stored in GeoEntities (within QBG object)
-  private void constructMapWidget() {
-
-  }
-
 
   private void constructTextOutput(
           final Vector<ScoredDocument> docs, StringBuffer response) {
