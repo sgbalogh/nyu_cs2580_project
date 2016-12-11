@@ -8,7 +8,7 @@ public class LocationParser {
 
 	private SpatialEntityKnowledgeBase _gkb;
 	private Indexer _indexer;
-	private Map<String,Integer> listOfCandidateLocation = new HashMap<>();
+	private static Map<String,Integer> listOfCandidateLocation = new HashMap<>();
 	private QueryBoolGeo toReturn;
 	public LocationParser(Indexer indexer, SpatialEntityKnowledgeBase gkb) {
 		_indexer = indexer;
@@ -310,7 +310,23 @@ public class LocationParser {
 		return toReturn;
 	}
 
-	public static List<String> removeStopWords(String s){
+	public static List<String> removeStopWords(String s1){
+		int p,q;
+		String s=s1;
+
+		while(s.contains("\"")){
+			p = s.indexOf("\"");
+			q = s.indexOf("\"",s.indexOf("\"") + 1);
+			listOfCandidateLocation.put(s.substring(p+1,q),-1);
+			System.out.println("removing quotations: "+s.substring(p,q+1));
+			s=s.replace(s.substring(p,q+1),"");
+			System.out.println("updated s: "+s);
+		}
+		System.out.println("updated s: "+s);
+
+
+
+
 		String[] given=s.split("\\s+");
 		List<String> toReturn = new ArrayList<>();
 		int l = given.length;
