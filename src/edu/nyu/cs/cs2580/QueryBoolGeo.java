@@ -34,7 +34,7 @@ public class QueryBoolGeo extends Query {
     public boolean cache = false;
     public boolean best = false;
 
-    public HashMap<String, String> _ambiguous_URLs; //Modified String => URL
+    public HashMap<Integer, String> _ambiguous_URLs; //GeoID => URL
 
     public QueryBoolGeo(String inputString) {
         super(inputString);
@@ -99,9 +99,9 @@ public class QueryBoolGeo extends Query {
                     for (GeoEntity ge : list) {
                         String expanded_name;
                         if (level == 0) {
-                            expanded_name = ge.getName() + " " + ge.getStateName();
+                            expanded_name = ge.getName() + "," + ge.getStateName();
                         } else {
-                            expanded_name = ge.getName() + " " + ge.getCountyName() + " " + ge.getStateName();
+                            expanded_name = ge.getName() + "," + ge.getCountyName() + "," + ge.getStateName();
                         }
                         if (temp.containsKey(expanded_name)) {
                             temp.get(expanded_name).add(ge);

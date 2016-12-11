@@ -38,8 +38,6 @@ public class HtmlGenerator {
         createAmbiguousBody();
     }
 
-
-
     private void constructNonSpatial() {
         createNonSpatialHead();
         createNonSpatialBody();
@@ -96,8 +94,6 @@ public class HtmlGenerator {
                 "</body>\n" +
                 "</html>");
     }
-
-
 
     private void createNonSpatialHead() {
         builder.append("<html>\n" +
@@ -196,7 +192,16 @@ public class HtmlGenerator {
                 "        return query_string;\n" +
                 "      }\n" +
                 "\n" +
+                "       var non_spatial_query = \"");
+
+                // HERE we want to insert the non-spatial terms:
+                builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
+
+                builder.append("\";\n" +
+                "      var button_link = \"./search?\" + getStringForNewSearch(non_spatial_query) + \"&best=true\";\n" +
+                "\n" +
                 "        $('document').ready(function () {\n" +
+                "            $('#button_zone').append(\"<a class=\\\"btn btn-default\\\" href=\\\"\" + button_link + \"\\\" role=\\\"button\\\">See all results for general area</a>\");\n" +
                 "            $(\"#search_bar\").val(getQueryFromQueryString());\n" +
                 "            $(\"#search_bar\").keyup(function (event) {\n" +
                 "                if (event.keyCode == 13) {\n" +
@@ -212,7 +217,7 @@ public class HtmlGenerator {
     }
 
     private void createAmbiguousBody() {
-        builder.append("<body>(DEBUG) MODE: AMBIGUOUS\n" +
+        builder.append("<body>\n" +
                 "<div class=\"container\">\n" +
                 "    <h3>");
         builder.append(this.qbg._query);
@@ -247,7 +252,11 @@ public class HtmlGenerator {
         builder.append(qbg.get_candidate_geo_entities().get(0).getName());
         builder.append("</code> did you mean?</h4><h5>Click on one to select...</h5>\n" +
                 "        <div id=\"map\">\n" +
-                "        </div>\n" +
+                "        </div><br>\n" +
+                "<div class=\"well well-sm\">\n" +
+                        "          <ol id=\"amb_links\">\n" +
+                        "          </ol>\n" +
+                        "        </div>" +
                 "    </div>\n" +
                 "\n" +
                 "\n" +
@@ -302,8 +311,21 @@ public class HtmlGenerator {
                 "                }\n" +
                 "            }\n" +
                 "        },\n" +
-                "        onEachFeature: function (feature, layer) {\n" +
-                "            layer.bindPopup(feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name);\n" +
+                "onEachFeature: function (feature, layer) {\n" +
+                "            var non_location_q = \"");
+                // INSERT NON LOCATION QUERY HERE
+                builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
+
+                builder.append("\";\n" +
+                "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id;\n" +
+                "            var popup_text = feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name;\n" +
+                "            var link_text = feature.properties.name;\n" +
+                "            if (feature.properties.state != null) {\n" +
+                "              popup_text += \"<br><b>\" + feature.properties.state + \"</b>\";\n" +
+                "              link_text += \", \" + feature.properties.state;\n" +
+                "            }\n" +
+                "            $('#amb_links').append(\"<li><a href=\\\"\" + \"./search?\" + request_url + \"\\\">\" + link_text + \"</a></li>\");\n" +
+                "            layer.bindPopup(popup_text);\n" +
                 "            layer.on('mouseover', function (e) {\n" +
                 "                this.openPopup();\n" +
                 "            });\n" +
@@ -311,10 +333,11 @@ public class HtmlGenerator {
                 "                this.closePopup();\n" +
                 "            });\n" +
                 "            layer.on('click', function (e) {\n" +
-                "                window.location.href = \"./search?hi there\"\n" +
+                "              console.log(request_url);\n" +
+                "              window.location.href = \"./search?\" + request_url;\n" +
                 "            })\n" +
                 "        }\n" +
-                "    }).addTo(map);\n" +
+                "    }).addTo(map);" +
                 "\n" +
                 "</script>\n" +
                 "\n" +
@@ -325,7 +348,7 @@ public class HtmlGenerator {
     }
 
     private void createSpatialBody() {
-        builder.append("<body>(DEBUG) MODE: EXPANSION\n" +
+        builder.append("<body>" +
                 "<div class=\"container\">\n" +
                 "    <h3>");
         builder.append(this.qbg._query);
@@ -356,16 +379,22 @@ public class HtmlGenerator {
                 "    </div>\n" +
                 "    \n" +
                 "    <div class=\"col-md-4\">\n" +
-                "        <h4>Chicago</h4>\n" +
-                "        <h5><div class=\"label label-primary\">Cook County</div></h5><h5><div class=\"label label-success\">Illinois</div></h5>\n" +
-                "        <h5>Population <code>2949384</code></h5> \n" +
-                "\n" +
+                "        <h3><code><b>");
+        builder.append(qbg.get_candidate_geo_entities().get(0).getName());
+        builder.append("</b>");
+        if (!qbg.get_expanded_geo_entities().get(0).getStateName().equals("")) {
+            builder.append(", ");
+            builder.append(qbg.get_expanded_geo_entities().get(0).getStateName());
+        }
+        builder.append("</code></h3>\n" +
+                "        <div id=\"population\">\n" +
+                "        </div>\n" +
+                "        <h5>These nearby locations (<i>in blue</i>) appear to have relevant documents...</h5>\n" +
                 "        <div id=\"map\">\n" +
                 "        </div>\n" +
                 "        <br>\n" +
-                "        <a class=\"btn btn-default\" href=\"#\" role=\"button\">Issue Query for Nearby Cities</a>\n" +
-                "        <a class=\"btn btn-default\" href=\"#\" role=\"button\">Issue Query for Cook County</a>\n" +
-                "        <a class=\"btn btn-default\" href=\"#\" role=\"button\">Issue Query for Illinois</a>\n" +
+                "        <div id=\"button_zone\">\n" +
+                "        </div>\n" +
                 "    </div>\n" +
                 "\n" +
                 "\n" +
