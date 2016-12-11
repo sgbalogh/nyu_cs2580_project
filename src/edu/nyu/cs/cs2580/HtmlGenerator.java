@@ -243,16 +243,11 @@ public class HtmlGenerator {
                 "    </div>\n" +
                 "    \n" +
                 "    <div class=\"col-md-4\">\n" +
-                "        <h4>Chicago</h4>\n" +
-                "        <h5><div class=\"label label-primary\">Cook County</div></h5><h5><div class=\"label label-success\">Illinois</div></h5>\n" +
-                "        <h5>Population <code>2949384</code></h5> \n" +
-                "\n" +
+                "        <h4>Which <code>");
+        builder.append(qbg.get_candidate_geo_entities().get(0).getName());
+        builder.append("</code> did you mean?</h4><h5>Click on one to select...</h5>\n" +
                 "        <div id=\"map\">\n" +
                 "        </div>\n" +
-                "        <br>\n" +
-                "        <a class=\"btn btn-default\" href=\"#\" role=\"button\">Issue Query for Nearby Cities</a>\n" +
-                "        <a class=\"btn btn-default\" href=\"#\" role=\"button\">Issue Query for Cook County</a>\n" +
-                "        <a class=\"btn btn-default\" href=\"#\" role=\"button\">Issue Query for Illinois</a>\n" +
                 "    </div>\n" +
                 "\n" +
                 "\n" +

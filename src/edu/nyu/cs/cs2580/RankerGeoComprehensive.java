@@ -136,7 +136,7 @@ public class RankerGeoComprehensive extends Ranker {
 		    //=================End of Original Run===================
 	        
 	        //=====================================Ambiguous mode====================================
-	        if(query.get_candidate_geo_entities().size() > 0) {
+	        if(query.get_candidate_geo_entities().size() > 1) {
 	        	//Run uniquify
                 query._presentation_mode = GEO_MODE.AMBIGUOUS;
      	
@@ -160,7 +160,7 @@ public class RankerGeoComprehensive extends Ranker {
 		            while(expQueryIterator.hasNext()) {
 		
 		                //Create new query:
-		                String cityName = expQueryIterator.next().getName();
+		                String cityName = expQueryIterator.next().getName().toLowerCase().trim();
 		
 		                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._tokens.toString().replaceAll( "[^A-Za-z0-9//s]", "") + " " + cityName);
 		                Vector<String> _new_terms = new Vector<>(query._tokens); //Add non location terms
@@ -180,9 +180,9 @@ public class RankerGeoComprehensive extends Ranker {
 		                //Log Results:
 		                logs.append(expandedQuery._query).append(": ").append(normalizedScore);
 		
-		                if( normalizedScore > _expanded_threshold
-		                        &&
-		                        normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
+		                if( normalizedScore >= _expanded_threshold ) {
+		                     //   &&
+		                     //   normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
 		
 		                    ((QueryBoolGeo) init_query)._presentation_mode = GEO_MODE.EXPANSION;
 		
@@ -293,6 +293,7 @@ public class RankerGeoComprehensive extends Ranker {
             while ((doc = (DocumentIndexed) _indexer.nextDoc(query, docid)) != null) {
                 double score = scoreDocumentQL(query, doc);
                 rankQueue.add(new ScoredDocument(doc, score));
+                System.out.println(doc.getTitle() + " " + score);
 
                 //Make sure top X documents are in memory
                 if (rankQueue.size() > numResults) {
@@ -340,7 +341,7 @@ public class RankerGeoComprehensive extends Ranker {
             //Normal Tokens
             for(String term : query._tokens) {
                 int docTermFreq = _indexer.documentTermFrequency(term, doc._docid);
-            	System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
+            	//System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
                 score += docTermFreq * //Term Frequency
                         Math.pow(
                                 (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1
