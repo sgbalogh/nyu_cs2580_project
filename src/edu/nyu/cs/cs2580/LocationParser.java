@@ -221,6 +221,8 @@ public class LocationParser {
 							}
 							System.out.println("hereB");
 							non_location_terms.remove(non_location_terms.get(index));
+							size2=size2-1;
+							j=j-1;
 						}
 					} else {
 						System.out.println("hereC");
@@ -243,7 +245,7 @@ public class LocationParser {
 
 			}
 		}
-
+		System.out.println("hereE");
 
 		int index2=0;
 		int size3 = non_location_terms.size();
@@ -268,6 +270,8 @@ public class LocationParser {
 					}
 			}
 		}
+
+		System.out.println("hereF");
 
 		int index3=0;
 		for(int i=0; i< index2; i++){
