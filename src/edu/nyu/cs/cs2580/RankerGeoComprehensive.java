@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -105,15 +106,23 @@ public class RankerGeoComprehensive extends Ranker {
 	        
 	        boolean supportingTerms = (query._tokens.size() > 0? true: false);
 	        
+	        System.out.println(query.get_candidate_geo_entities().size());
+	        
+	        //TODO: Fix
 	        if(query.get_candidate_geo_entities().size() > 0) {
 	        	//Find indexes of changed values
 	        	int index = query._tokens.size();
+	        	HashSet<String> dict = new HashSet<String>();
 	        	for(GeoEntity ge : query.get_candidate_geo_entities()) {
 	        		
 	        		String cleanedName = ge.getName().toLowerCase().trim();
-		        	query._tokens.add(cleanedName);
-		        	geoTermIndex.put(cleanedName, index);
-		        	index++;
+	        		if(!dict.contains(cleanedName)) {
+	        			dict.add(cleanedName);
+			        	query._tokens.add(cleanedName);
+			        	System.out.println(cleanedName);
+			        	geoTermIndex.put(cleanedName, index);
+			        	index++;
+	        		}
 	        	}
 	        }
 	        
@@ -135,11 +144,83 @@ public class RankerGeoComprehensive extends Ranker {
    
 		    //=================End of Original Run===================
 	        
+	        //=============================================
+            // Expansion Modes
+            //=============================================
+	        
 	        //=====================================Ambiguous mode====================================
 	        if(query.get_candidate_geo_entities().size() > 1) {
-	        	//Run uniquify
-                query._presentation_mode = GEO_MODE.AMBIGUOUS;
-     	
+	        	//Run uniqify
+	        	System.out.println("Uniquify Stage");
+	        	
+	        	//Uniqify Each Candidate
+	            query.uniqify(query.get_candidate_geo_entities());
+	            
+	            HashMap<String, Double> scores = new HashMap<>();
+	            
+	            //Run queries for each and get the best ones
+	            Iterator<GeoEntity> geIter = query.get_candidate_geo_entities().iterator();
+	            
+	            while(geIter.hasNext()) {
+	            	
+	            	GeoEntity ge = geIter.next();
+	            			
+	            	String key = ge.getName().toLowerCase().trim();
+	            	
+	            	int startPoint = geoTermIndex.get(key);
+	            	int insertPoint = startPoint;
+	            	
+	            	System.out.println(geoTermIndex.get(key));
+	            	query._tokens.remove(startPoint);
+	            	
+	            	//Insert into Tokens new
+	            	for(String term: ge.getUniqueName().split("\\s+")) {
+	            		if(insertPoint == query._tokens.size())
+	            			query._tokens.add( term );
+	            		else
+	            			query._tokens.set( insertPoint , term );
+	            		insertPoint++;
+	            	}
+	            	
+	            	ScoredSumTuple newResults = runQuery(query , numResults);
+	        		
+	            	if(newResults.total_score / newResults.queryNorm > _expanded_threshold) {
+	            		scores.put(ge.getUniqueName() , newResults.total_score / newResults.queryNorm );
+	            		//cache
+	                    _cache.put(query._query.replace(key, "") + " " + ge.getName(), newResults);
+	                    
+			            //Populate URLs
+		            	//http://localhost:25805/search?query=%22central%20park%22%20hoboken&ranker=geocomprehensive
+		            	String url = "query=" + query._query.replace(key, "") + "&place=" + ge.getId() + "&ranker=geocomprehensive";
+		            	
+		            	query._ambiguous_URLs.put(query._query.replace(key, ge.getUniqueName()) , url);
+		            	
+	            	} else { //Remove if not qualified
+	            		geIter.remove();
+	            	}
+	            	
+	            	//Delete from Tokens
+	            	for(int ind = insertPoint - 1; ind >= startPoint; ind--) {
+	            		query._tokens.remove( ind );
+	            	}
+	            	
+	            	if(startPoint == query._tokens.size())
+	            		query._tokens.add( key );
+	            	else
+	            		query._tokens.set( startPoint , key );
+	            }
+	            
+	            //Sort candidates by their scores & assign new candidates
+	            query.get_candidate_geo_entities().sort( new Comparator<GeoEntity>() {
+					@Override
+					public int compare(GeoEntity o1, GeoEntity o2) {
+						return Double.compare(scores.get(o2.getUniqueName()), scores.get(o1.getUniqueName()));
+					}
+	            });
+	            
+	            //Set To Ambiguous MODE
+	            query._presentation_mode = GEO_MODE.AMBIGUOUS;
+	            
 	        } else if(query.get_candidate_geo_entities().size() == 1) {
 	        //=================================Local Expansion Mode===================================
 	        
@@ -149,10 +230,14 @@ public class RankerGeoComprehensive extends Ranker {
 		        		(origBenchmark.scored.size() < numResults 
 		        				|| //Original results not good enough
 		        				origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold * numResults)) {
-		        	System.out.println("Try to Expand");
+		        	
+		        	System.out.println("Expansion");
 		        	
 		        	//Expand Word
 		            query.expand(_max_expansion);
+		            
+		            //Remove old city
+		            query._tokens.remove(query._tokens.size() - 1);
 		
 		            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
 		        	
@@ -162,8 +247,10 @@ public class RankerGeoComprehensive extends Ranker {
 		                //Create new query:
 		                String cityName = expQueryIterator.next().getName().toLowerCase().trim();
 		
-		                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._tokens.toString().replaceAll( "[^A-Za-z0-9//s]", "") + " " + cityName);
+		                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._query); //Dummy query
 		                Vector<String> _new_terms = new Vector<>(query._tokens); //Add non location terms
+		                
+		                //Remove older CityName
 		                _new_terms.add(cityName);
 		
 		                expandedQuery._tokens = _new_terms;
@@ -180,9 +267,9 @@ public class RankerGeoComprehensive extends Ranker {
 		                //Log Results:
 		                logs.append(expandedQuery._query).append(": ").append(normalizedScore);
 		
-		                if( normalizedScore >= _expanded_threshold ) {
-		                     //   &&
-		                     //   normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
+		                if( normalizedScore > _expanded_threshold
+		                        &&
+		                        normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
 		
 		                    ((QueryBoolGeo) init_query)._presentation_mode = GEO_MODE.EXPANSION;
 		
@@ -199,6 +286,8 @@ public class RankerGeoComprehensive extends Ranker {
 		                    System.out.println(expandedQuery._query + ": unqualified with " + normalizedScore);
 		                }
 		            }
+		            
+		            //Sort Candidates
 		
 		            //Log Expansion queries
 		            if(query._presentation_mode.equals(GEO_MODE.EXPANSION)) {

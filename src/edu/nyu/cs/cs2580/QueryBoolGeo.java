@@ -34,13 +34,14 @@ public class QueryBoolGeo extends Query{
     public boolean cache = false;
     public boolean best = false;
     
-    public HashMap<Integer, GeoEntity> _ambiguous_candidates;
+    public HashMap<String, String> _ambiguous_URLs; //Modified String => URL
 
     public QueryBoolGeo(String inputString) {
         super(inputString);
         //DO NOT PROCESS INPUT STRING
         _candidate_geo_entities = new ArrayList<>();
         _expanded_geo_entities = new ArrayList<>();
+        _ambiguous_URLs = new HashMap<>();
     }
 
 
@@ -99,11 +100,8 @@ public class QueryBoolGeo extends Query{
         return toReturn;
         */
 
-        _ambiguous_candidates = new HashMap<>();
         for (String key : names.keySet()) {
-        	GeoEntity ge = names.get(key).get(0);
-        	ge.setUniqueName(key.toLowerCase().trim());
-        	_ambiguous_candidates.put(names.get(key).get(0).getId(), ge);
+        	names.get(key).get(0).setUniqueName(key.toLowerCase().trim());
         }
     }
 
@@ -126,9 +124,7 @@ public class QueryBoolGeo extends Query{
     // QUERY STRINGS THAT POPULATE _expanded_queries
     //TODO: make sure that max refers to the total number of expanded entities, not total per entity
     public void expand(int max) {
-        for (int i = 0; i < Math.min( _candidate_geo_entities.size(), max); i++) {
-        	_expanded_geo_entities.addAll((ArrayList) _candidate_geo_entities.get(i).fullExpand(max));
-        }
+        _expanded_geo_entities.addAll( _candidate_geo_entities.get(0).fullExpand(max));
         System.out.println("Expanded Size: " + _expanded_geo_entities.size());
     }
 

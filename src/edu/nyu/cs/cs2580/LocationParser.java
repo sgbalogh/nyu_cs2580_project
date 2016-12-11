@@ -1,6 +1,5 @@
 package edu.nyu.cs.cs2580;
 import java.util.*;
-import java.io.*;
 /**
  * Created by stephen on 12/3/16.
  */
@@ -16,7 +15,7 @@ public class LocationParser {
 
 	}
 
-
+	//==========================
 	public QueryBoolGeo parseQuery(String givenQuery){
 		listOfCandidateLocation.clear();
 		toReturn = new QueryBoolGeo(givenQuery);
@@ -24,16 +23,11 @@ public class LocationParser {
 		String[] tokens = givenQuery.split("\\s+");
 		int length = tokens.length;
 
-
-
-
-
 		String currentStringTested="";
 		String currentStringTested2="";
 		int freq1=0;
 		int freq2=0;
 		int[] spaces = new int[length-1];
-
 
 		int currentLengthOfCnadidate = 2;
 		for(int i=0; i< (length - currentLengthOfCnadidate ); i++){
@@ -155,7 +149,7 @@ public class LocationParser {
 
 	}
 
-	public QueryBoolGeo forEachSegments(){
+	private QueryBoolGeo forEachSegments(){
 		List<GeoEntity> location_terms = new ArrayList<>();
 		List<String> location_terms_string = new ArrayList<>();
 		Vector<String> non_location_terms = new Vector<>();
@@ -193,7 +187,9 @@ public class LocationParser {
 				List<GeoEntity> localList = _gkb.getCandidates(dummy);
 				if(!localList.isEmpty()){
 					location_terms_string.set(i, dummy);
+					System.out.println(dummy);
 					for(GeoEntity g: localList){
+						System.out.println(g.getName());
 						location_terms.add(g);
 					}
 					non_location_terms.remove(non_location_terms.get(index));
@@ -211,8 +207,6 @@ public class LocationParser {
 			}
 
 		}
-
-
 
 		int index2=0;
 		int size3 = non_location_terms.size();
@@ -255,10 +249,9 @@ public class LocationParser {
 		location_terms_string.clear();
 		non_location_terms.clear();
 		listOfCandidateLocation.clear();
-		//Vector<String> temp = new Vector<>();
-		//temp.add("new york");
-		//toReturn._tokens = temp;
 		return toReturn;
+		
+		//TODO: Fix
 	}
 
 
