@@ -222,6 +222,7 @@ public class LocationParser {
 
 
 			}
+			index = 0;
 
 		}
 
