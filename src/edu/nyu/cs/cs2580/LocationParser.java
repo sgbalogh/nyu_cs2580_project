@@ -190,19 +190,34 @@ public class LocationParser {
 		int size1=location_terms_string.size();
 		int size2=non_location_terms.size();
 		int index = 0;
-		for(int i=0; i< size1; i++){
-			for(int j=0; j<size2; j++){
+
+
+		if(size2==0){
+			for(int i=0; i<size1; i++){
+				List<GeoEntity> localList = _gkb.getCandidates(location_terms_string.get(i));
+				for (GeoEntity g : localList) {
+					location_terms.add(g);
+
+				}
+			}
+		}
+
+		else {
+
+			for (int i = 0; i < size1; i++) {
+				for (int j = 0; j < size2; j++) {
 
 
 					dummy = location_terms_string.get(i) + " " + non_location_terms.get(index);
 					System.out.println("dummy: " + dummy);
 					List<GeoEntity> localList = _gkb.getCandidates(dummy);
 					if (!localList.isEmpty()) {
-						if(listOfCandidateLocation.get(location_terms_string.get(i)) < listOfCandidateLocation.get(non_location_terms.get(index))) {
+						if (listOfCandidateLocation.get(location_terms_string.get(i)) < listOfCandidateLocation.get(non_location_terms.get(index))) {
 							System.out.println("hereA");
 							location_terms_string.set(i, dummy);
 							for (GeoEntity g : localList) {
 								location_terms.add(g);
+
 							}
 							System.out.println("hereB");
 							non_location_terms.remove(non_location_terms.get(index));
@@ -210,8 +225,10 @@ public class LocationParser {
 					} else {
 						System.out.println("hereC");
 						localList = _gkb.getCandidates(location_terms_string.get(i));
+
 						for (GeoEntity g : localList) {
 							location_terms.add(g);
+
 						}
 						System.out.println("in else...");
 						index += 1;
@@ -221,11 +238,11 @@ public class LocationParser {
 					dummy = "";
 
 
+				}
+				index = 0;
+
 			}
-			index = 0;
-
 		}
-
 
 
 		int index2=0;
@@ -275,6 +292,8 @@ public class LocationParser {
 		//Vector<String> temp = new Vector<>();
 		//temp.add("new york");
 		//toReturn._tokens = temp;
+
+		System.out.println("size:" +location_terms.size());
 		return toReturn;
 	}
 
