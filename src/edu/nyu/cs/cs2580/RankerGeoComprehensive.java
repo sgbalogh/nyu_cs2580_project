@@ -138,6 +138,7 @@ public class RankerGeoComprehensive extends Ranker {
 	        //=====================================Ambiguous mode====================================
 	        if(query.get_candidate_geo_entities().size() > 0) {
 	        	//Run uniquify
+                query._presentation_mode = GEO_MODE.AMBIGUOUS;
      	
 	        } else if(query.get_candidate_geo_entities().size() == 1) {
 	        //=================================Local Expansion Mode===================================

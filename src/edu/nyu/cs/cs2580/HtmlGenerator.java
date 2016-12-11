@@ -277,8 +277,8 @@ public class HtmlGenerator {
                 "\n" +
                 "    var marker_primary = {\n" +
                 "        radius: 20,\n" +
-                "        fillColor: \"#03993f\",\n" +
-                "        color: \"#00471c\",\n" +
+                "        fillColor: \"#f49242\",\n" +
+                "        color: \"#965018\",\n" +
                 "        weight: 3,\n" +
                 "        opacity: .6,\n" +
                 "        fillOpacity: 0.8\n" +
@@ -296,7 +296,7 @@ public class HtmlGenerator {
                 "    L.geoJSON(geojson, {\n" +
                 "        pointToLayer: function (feature, latlng) {\n" +
                 "            switch (feature.properties.type) {\n" +
-                "                case \"primary\":\n" +
+                "                case \"candidate\":\n" +
                 "                {\n" +
                 "                    return L.circleMarker(latlng, marker_primary)\n" +
                 "                }\n" +
