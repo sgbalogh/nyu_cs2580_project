@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Created by stephen on 12/3/16.
  */
-public class QueryBoolGeo extends Query{
+public class QueryBoolGeo extends Query {
 
     // For example query "jersey city zoo"...
     ///
@@ -27,13 +27,13 @@ public class QueryBoolGeo extends Query{
     private List<GeoEntity> _candidate_geo_entities; // This should hold all candidate GeoEntities for "jersey city"...
     // { Jersey City, NJ ; Jersey City, Utah ; etc..}
     private List<GeoEntity> _expanded_geo_entities;
-    
+
     public GEO_MODE _presentation_mode = GEO_MODE.NONE; // THIS SHOULD always be true if _expanded_queries.size() > 0
-    
+
     //TODO Need to introduce cache flag which returns cached value and best which returns merged form
     public boolean cache = false;
     public boolean best = false;
-    
+
     public HashMap<String, String> _ambiguous_URLs; //Modified String => URL
 
     public QueryBoolGeo(String inputString) {
@@ -42,6 +42,37 @@ public class QueryBoolGeo extends Query{
         _candidate_geo_entities = new ArrayList<>();
         _expanded_geo_entities = new ArrayList<>();
         _ambiguous_URLs = new HashMap<>();
+    }
+
+    // Resolve loops through all candidate geo entities, checking if any of them
+    // are in a parent/child relationship with one another –– if so, then we can
+    // safely delete everything except the child (SGB)
+    public boolean resolve() {
+        int size_of_candidates = _candidate_geo_entities.size();
+        if (size_of_candidates > 1) {
+            GeoEntity child = null;
+            for (int i = 0; i < size_of_candidates; i++) {
+                if (child == null) {
+                    GeoEntity consider_1 = _candidate_geo_entities.get(i);
+                    for (int j = 0; j < size_of_candidates; j++) {
+                        if (child == null) {
+                            GeoEntity consider_2 = _candidate_geo_entities.get(j);
+                            if (i != j) {
+                                if (consider_1.isSameOrDescendantOf(consider_2)) {
+                                    child = consider_1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (child != null) {
+                _candidate_geo_entities = new ArrayList<>();
+                _candidate_geo_entities.add(child);
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -67,7 +98,7 @@ public class QueryBoolGeo extends Query{
                 if (list.size() > 1) {
                     for (GeoEntity ge : list) {
                         String expanded_name;
-                        if (level == 0){
+                        if (level == 0) {
                             expanded_name = ge.getName() + " " + ge.getStateName();
                         } else {
                             expanded_name = ge.getName() + " " + ge.getCountyName() + " " + ge.getStateName();
@@ -101,7 +132,7 @@ public class QueryBoolGeo extends Query{
         */
 
         for (String key : names.keySet()) {
-        	names.get(key).get(0).setUniqueName(key.toLowerCase().trim());
+            names.get(key).get(0).setUniqueName(key.toLowerCase().trim());
         }
     }
 
@@ -116,7 +147,7 @@ public class QueryBoolGeo extends Query{
 
 
     // THESE ARE THE METHODS THAT RANKERGEOCOMPREHENSIVE WILL USE:
-    public List<GeoEntity> get_expanded_geo_entities () {
+    public List<GeoEntity> get_expanded_geo_entities() {
         return _expanded_geo_entities;
     }
 
@@ -124,7 +155,7 @@ public class QueryBoolGeo extends Query{
     // QUERY STRINGS THAT POPULATE _expanded_queries
     //TODO: make sure that max refers to the total number of expanded entities, not total per entity
     public void expand(int max) {
-        _expanded_geo_entities.addAll( _candidate_geo_entities.get(0).fullExpand(max));
+        _expanded_geo_entities.addAll(_candidate_geo_entities.get(0).fullExpand(max));
         System.out.println("Expanded Size: " + _expanded_geo_entities.size());
     }
 

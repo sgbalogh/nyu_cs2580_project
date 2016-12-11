@@ -147,7 +147,11 @@ public class RankerGeoComprehensive extends Ranker {
 	        //=============================================
             // Expansion Modes
             //=============================================
-	        
+
+
+            query.resolve(); // This helps us reduce the amount of candidate locations by
+                                // looking to see if any of them are related
+
 	        //=====================================Ambiguous mode====================================
 	        if(query.get_candidate_geo_entities().size() > 1) {
 	        	//Run uniqify

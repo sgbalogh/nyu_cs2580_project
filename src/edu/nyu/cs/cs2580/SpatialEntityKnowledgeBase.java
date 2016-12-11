@@ -76,6 +76,20 @@ public class SpatialEntityKnowledgeBase implements Serializable {
                 toAdd.add(entity);
                 _term_search_map.put(key, toAdd);
             }
+
+            //System.out.println("Trying to get state for : " + key);
+            String expanded_key = key + " " + entity.getStateName();
+            expanded_key = expanded_key.toLowerCase().trim();
+
+            if (_term_search_map.containsKey(expanded_key)) {
+                _term_search_map.get(expanded_key).add(entity);
+            } else {
+                ArrayList<GeoEntity> toAdd = new ArrayList<>();
+                toAdd.add(entity);
+                _term_search_map.put(expanded_key, toAdd);
+            }
+
+
             //TODO: Determine if this is necessary
             /*String[] split_key = key.split(" ");
             if (split_key.length > 1) {

@@ -103,6 +103,16 @@ public class GeoEntity implements Serializable {
         return toReturn;
     }
 
+    public boolean isSameOrDescendantOf(GeoEntity that) {
+        boolean toReturn = false;
+        if (this.equals(that)) {
+            toReturn = true;
+        } else if (this.parent != null) {
+            toReturn = this.parent.isSameOrDescendantOf(that);
+        }
+        return toReturn;
+    }
+
     public GeoEntity getState() {
         GeoEntity toReturn = null;
         if (this.type.equals("STATE")) {
@@ -124,7 +134,7 @@ public class GeoEntity implements Serializable {
     }
 
     public String getStateName() {
-        String toReturn = null;
+        String toReturn = "";
         if (this.type.equals("STATE")) {
             toReturn = this.getName();
         } else if (this.type.equals("CITY") || this.type.equals("COUNTY")) {
@@ -134,7 +144,7 @@ public class GeoEntity implements Serializable {
     }
 
     public String getCountyName() {
-        String toReturn = null;
+        String toReturn = "";
         if (this.type.equals("COUNTY")) {
             toReturn = this.getName();
         } else if (this.type.equals("CITY")) {
