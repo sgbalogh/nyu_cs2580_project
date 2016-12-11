@@ -34,7 +34,7 @@ public class QueryBoolGeo extends Query{
     public boolean cache = false;
     public boolean best = false;
     
-    public HashMap<String, String> _ambiguous_URLs; //Modified String => URL
+    public HashMap<Integer, String> _ambiguous_URLs; //GeoID => URL
 
     public QueryBoolGeo(String inputString) {
         super(inputString);

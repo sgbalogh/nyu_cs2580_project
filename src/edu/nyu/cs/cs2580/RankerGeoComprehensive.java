@@ -193,7 +193,7 @@ public class RankerGeoComprehensive extends Ranker {
 		            	//http://localhost:25805/search?query=%22central%20park%22%20hoboken&ranker=geocomprehensive
 		            	String url = "query=" + query._query.replace(key, "") + "&place=" + ge.getId() + "&ranker=geocomprehensive";
 		            	
-		            	query._ambiguous_URLs.put(query._query.replace(key, ge.getUniqueName()) , url);
+		            	query._ambiguous_URLs.put(ge.getId() , url);
 		            	
 	            	} else { //Remove if not qualified
 	            		geIter.remove();

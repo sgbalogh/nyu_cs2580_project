@@ -7,18 +7,111 @@ public class LocationParser {
 
 	private SpatialEntityKnowledgeBase _gkb;
 	private Indexer _indexer;
-	private List<String> listOfCandidateLocation = new ArrayList<>();
-	private QueryBoolGeo toReturn;
+
 	public LocationParser(Indexer indexer, SpatialEntityKnowledgeBase gkb) {
 		_indexer = indexer;
 		_gkb = gkb;
+	}
+	
+	//Logistic Regression Test
+	private QueryBoolGeo langModel(String givenQuery) {
+		givenQuery = givenQuery.toLowerCase();
+		int k = 3; //Max N-Gram Size 
+		try {
+			String[] seperatedTerms = givenQuery.split("\\s+");
+			double[] scores = new double[seperatedTerms.length];
+			int[] pointers = new int[seperatedTerms.length];
+			
+			System.out.println("Orig Terms: " + givenQuery);
+			
+			//Segment Strings
+			for(int ind = 0; ind < scores.length; ind++) {
+				double bestScore = Double.NEGATIVE_INFINITY;
+				int bestPt = 0;
+				String term = seperatedTerms[ind];
+				String remainingTerm = "";
+				for(int n = ind; n >= Math.max(0, ind - k + 1); n--) {
+					if(n != ind) {
+						term = seperatedTerms[n] + " " + term;
+						remainingTerm = seperatedTerms[n] + " " + remainingTerm;
+					}
+					double scoreTest = score(term, remainingTerm);
+					double score = scoreTest + (n - 1 >= 0? scores[n - 1]: 0);
+					if(score > bestScore) {
+						bestScore = score;
+						bestPt = n;
+					}
+				}
+				scores[ind] = bestScore;
+				pointers[ind] = bestPt;
+			}
+			
+			ArrayList<String> segmentedTerms = new ArrayList<String>();
 
+			//Extract Terms
+			for(int counter = pointers.length - 1; counter >= 0; counter--) {
+				String buff = "";
+				int start = pointers[counter];
+				while(counter >= start) {
+					if(buff.length() == 0)
+						buff = seperatedTerms[counter];
+					else
+						buff = seperatedTerms[counter] + " " + buff;
+					
+					if(counter == start)
+						break;
+					
+					counter--;
+				}
+				segmentedTerms.add(0, buff);
+			}
+			
+			System.out.println("Segmented Terms: " + segmentedTerms.toString());
+			
+			//Check for Locations
+			QueryBoolGeo toReturn = new QueryBoolGeo(givenQuery);
+			
+			for(String term : segmentedTerms) {
+				List<GeoEntity> cands = _gkb.getCandidates(term);
+				if(cands.isEmpty()) {
+					toReturn._tokens.add(term);
+				} else {
+					toReturn.populateGeoEntities(cands);
+				}
+			}
+			
+			System.out.println(toReturn.get_candidate_geo_entities().size());
+			
+			return toReturn;
+		} catch( Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	//Simple Probability + Laplacian Smoothing 
+	private double score(String term, String remainingTerm) { //Simple 
+		try{ 
+			double remainingCount = (remainingTerm.length() > 0? _indexer.corpusTermFrequency(remainingTerm):_indexer.totalTermFrequency());
+			double score = Math.log( (_indexer.corpusTermFrequency(term) / remainingCount + 1) + (1.0 / _indexer.totalTermFrequency()));
+			return score;
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		return 0;
 	}
 
-	//==========================
-	public QueryBoolGeo parseQuery(String givenQuery){
-		listOfCandidateLocation.clear();
-		toReturn = new QueryBoolGeo(givenQuery);
+	//================================
+	//| Main API Query Handler Calls |
+	//================================
+	public QueryBoolGeo parseQuery(String givenQuery ){
+		
+		if(true)
+			return langModel(givenQuery);
+		
+		List<String> listOfCandidateLocation = new ArrayList<>();
+		
+		QueryBoolGeo toReturn = new QueryBoolGeo(givenQuery);
 		System.out.println(givenQuery);
 		String[] tokens = givenQuery.split("\\s+");
 		int length = tokens.length;
@@ -143,13 +236,13 @@ public class LocationParser {
 			System.out.println("here...: "+listOfCandidateLocation.get(i));
 		}
 
-		QueryBoolGeo toReturn = forEachSegments();
+		QueryBoolGeo test = forEachSegments(toReturn,listOfCandidateLocation);
 		System.out.println("Tokens " + toReturn._tokens.toString());
-		return toReturn;
+		return test;
 
 	}
 
-	private QueryBoolGeo forEachSegments(){
+	private QueryBoolGeo forEachSegments(QueryBoolGeo toReturn, List<String> listOfCandidateLocation){
 		List<GeoEntity> location_terms = new ArrayList<>();
 		List<String> location_terms_string = new ArrayList<>();
 		Vector<String> non_location_terms = new Vector<>();
@@ -253,12 +346,5 @@ public class LocationParser {
 		
 		//TODO: Fix
 	}
-
-
-	//===============================================
-	// INCLUDE METHOD FOR STATISTICAL SEGMENTATION
-	//===============================================
-
-
 
 }
