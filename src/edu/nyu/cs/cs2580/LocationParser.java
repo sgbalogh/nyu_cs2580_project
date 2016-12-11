@@ -22,6 +22,7 @@ public class LocationParser {
 		toReturn = new QueryBoolGeo(givenQuery);
 		System.out.println(givenQuery);
 		String[] tokens = givenQuery.split("\\s+");
+		toReturn._tokens = new Vector<String>(tokens);
 		int length = tokens.length;
 		int[] id = new int[length];
 		for(int i=0; i<length; i++){
@@ -303,7 +304,7 @@ public class LocationParser {
 		System.out.println("non-locations");
 		System.out.println(non_location_terms.toString());
 
-		toReturn._tokens = non_location_terms;
+		toReturn.setSupportingTokens(non_location_terms);
 		toReturn.populateGeoEntities(location_terms);
 
 		//location_terms_string.clear();
