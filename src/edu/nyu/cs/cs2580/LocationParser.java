@@ -74,13 +74,12 @@ public class LocationParser {
 			for(String term : segmentedTerms) {
 				List<GeoEntity> cands = _gkb.getCandidates(term);
 				if(cands.isEmpty()) {
-					toReturn._tokens.add(term);
+					toReturn.getSupportingTokens().add(term);
 				} else {
 					toReturn.populateGeoEntities(cands);
 				}
+				toReturn._tokens.add(term);
 			}
-			
-			System.out.println(toReturn.get_candidate_geo_entities().size());
 			
 			return toReturn;
 		} catch( Exception e) {

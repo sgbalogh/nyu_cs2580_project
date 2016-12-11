@@ -236,11 +236,11 @@ class QueryHandler implements HttpHandler {
 
 
       // Ranking.
-      //TODO: implement this
       // LIST OF GEOENTITIES IS WITHIN QBG
       Vector<ScoredDocument> scoredDocs =
               ranker.runQuery(processedQuery, cgiArgs._numResults);
 
+      try {
       StringBuffer response = new StringBuffer();
       switch (cgiArgs._outputFormat) {
         case TEXT:
@@ -266,6 +266,9 @@ class QueryHandler implements HttpHandler {
           // nothing
       }
       respondWithMsg(exchange, response.toString());
+      } catch(Exception e) {
+    	  e.printStackTrace();
+      }
       System.out.println("Finished query: " + cgiArgs._query);
     } else {
       respondWithMsg(exchange, "Only /search is handled!");

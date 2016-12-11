@@ -24,6 +24,7 @@ public class QueryBoolGeo extends Query{
     // QBG needs to separate original query string from expanded query strings (so that the Ranker
     // can disambiguate between them)
 
+	private List<String> _supporting_tokens;
     private List<GeoEntity> _candidate_geo_entities; // This should hold all candidate GeoEntities for "jersey city"...
     // { Jersey City, NJ ; Jersey City, Utah ; etc..}
     private List<GeoEntity> _expanded_geo_entities;
@@ -41,9 +42,9 @@ public class QueryBoolGeo extends Query{
         //DO NOT PROCESS INPUT STRING
         _candidate_geo_entities = new ArrayList<>();
         _expanded_geo_entities = new ArrayList<>();
+        _supporting_tokens = new ArrayList<>();
         _ambiguous_URLs = new HashMap<>();
     }
-
 
     public void uniqify(List<GeoEntity> input) {
         int level = 0;
@@ -68,9 +69,9 @@ public class QueryBoolGeo extends Query{
                     for (GeoEntity ge : list) {
                         String expanded_name;
                         if (level == 0){
-                            expanded_name = ge.getName() + " " + ge.getStateName();
+                            expanded_name = ge.getName() + "," + ge.getStateName();
                         } else {
-                            expanded_name = ge.getName() + " " + ge.getCountyName() + " " + ge.getStateName();
+                            expanded_name = ge.getName() + "," + ge.getCountyName() + "," + ge.getStateName();
                         }
                         if (temp.containsKey(expanded_name)) {
                             temp.get(expanded_name).add(ge);
@@ -127,5 +128,13 @@ public class QueryBoolGeo extends Query{
         _expanded_geo_entities.addAll( _candidate_geo_entities.get(0).fullExpand(max));
         System.out.println("Expanded Size: " + _expanded_geo_entities.size());
     }
+
+	public List<String> getSupportingTokens() {
+		return _supporting_tokens;
+	}
+
+	public void setSupportingTokens(List<String> _supporting_tokens) {
+		this._supporting_tokens = _supporting_tokens;
+	}
 
 }
