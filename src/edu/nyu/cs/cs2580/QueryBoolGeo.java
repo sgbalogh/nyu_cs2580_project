@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Created by stephen on 12/3/16.
  */
-public class QueryBoolGeo extends Query {
+public class QueryBoolGeo extends Query{
 
     // For example query "jersey city zoo"...
     ///
@@ -24,6 +24,7 @@ public class QueryBoolGeo extends Query {
     // QBG needs to separate original query string from expanded query strings (so that the Ranker
     // can disambiguate between them)
 
+    private List<String> _supporting_tokens;
     private List<GeoEntity> _candidate_geo_entities; // This should hold all candidate GeoEntities for "jersey city"...
     // { Jersey City, NJ ; Jersey City, Utah ; etc..}
     private List<GeoEntity> _expanded_geo_entities;
@@ -41,6 +42,7 @@ public class QueryBoolGeo extends Query {
         //DO NOT PROCESS INPUT STRING
         _candidate_geo_entities = new ArrayList<>();
         _expanded_geo_entities = new ArrayList<>();
+        _supporting_tokens = new ArrayList<>();
         _ambiguous_URLs = new HashMap<>();
     }
 
@@ -75,7 +77,6 @@ public class QueryBoolGeo extends Query {
         return false;
     }
 
-
     public void uniqify(List<GeoEntity> input) {
         int level = 0;
         HashMap<String, List<GeoEntity>> names = new HashMap<>();
@@ -98,7 +99,7 @@ public class QueryBoolGeo extends Query {
                 if (list.size() > 1) {
                     for (GeoEntity ge : list) {
                         String expanded_name;
-                        if (level == 0) {
+                        if (level == 0){
                             expanded_name = ge.getName() + "," + ge.getStateName();
                         } else {
                             expanded_name = ge.getName() + "," + ge.getCountyName() + "," + ge.getStateName();
@@ -147,7 +148,7 @@ public class QueryBoolGeo extends Query {
 
 
     // THESE ARE THE METHODS THAT RANKERGEOCOMPREHENSIVE WILL USE:
-    public List<GeoEntity> get_expanded_geo_entities() {
+    public List<GeoEntity> get_expanded_geo_entities () {
         return _expanded_geo_entities;
     }
 
@@ -155,8 +156,16 @@ public class QueryBoolGeo extends Query {
     // QUERY STRINGS THAT POPULATE _expanded_queries
     //TODO: make sure that max refers to the total number of expanded entities, not total per entity
     public void expand(int max) {
-        _expanded_geo_entities.addAll(_candidate_geo_entities.get(0).fullExpand(max));
+        _expanded_geo_entities.addAll( _candidate_geo_entities.get(0).fullExpand(max));
         System.out.println("Expanded Size: " + _expanded_geo_entities.size());
+    }
+
+    public List<String> getSupportingTokens() {
+        return _supporting_tokens;
+    }
+
+    public void setSupportingTokens(List<String> _supporting_tokens) {
+        this._supporting_tokens = _supporting_tokens;
     }
 
 }

@@ -99,236 +99,189 @@ public class RankerGeoComprehensive extends Ranker {
             //=============================================
             // Initial Query Run
             //=============================================
-	        QueryBoolGeo query = (QueryBoolGeo) init_query;
-	        
-	        HashMap<String, Integer> geoTermIndex = new HashMap<>(); //Central Park => 0, Hoboken => 1
-	        //Don't really care about duplicates
-	        
-	        boolean supportingTerms = (query._tokens.size() > 0? true: false);
-	        
-	        System.out.println(query.get_candidate_geo_entities().size());
-	        
-	        //TODO: Fix
-	        if(query.get_candidate_geo_entities().size() > 0) {
-	        	//Find indexes of changed values
-	        	int index = query._tokens.size();
-	        	HashSet<String> dict = new HashSet<String>();
-	        	for(GeoEntity ge : query.get_candidate_geo_entities()) {
-	        		
-	        		String cleanedName = ge.getName().toLowerCase().trim();
-	        		if(!dict.contains(cleanedName)) {
-	        			dict.add(cleanedName);
-			        	query._tokens.add(cleanedName);
-			        	System.out.println(cleanedName);
-			        	geoTermIndex.put(cleanedName, index);
-			        	index++;
-	        		}
-	        	}
-	        }
-	        
-	        if(init_query._tokens.size() == 0) //Flat out empty String
-	            return new Vector<ScoredDocument>();
-	
-	        if(query.cache) { //Return cached value
-	            return returnCachedList(query._query, numResults, query.best);
-	        }
-	        
-	        System.out.println(query._tokens.toString());
-	        
-	        ScoredSumTuple origBenchmark = runQuery(query, numResults);
-	        
-	        System.out.println("Original Finished: " + origBenchmark.scored.size() + " Score: " + (origBenchmark.total_score / origBenchmark.queryNorm));
-	        
-	        StringBuilder logs = new StringBuilder("Orig Term :");
-	        logs.append(query._query).append(" ").append(origBenchmark.total_score).append("\n");
-   
-		    //=================End of Original Run===================
-	        
-	        //=============================================
+            QueryBoolGeo query = (QueryBoolGeo) init_query;
+
+            if(init_query._tokens.size() == 0) //Flat out empty String
+                return new Vector<ScoredDocument>();
+
+            if(query.cache) { //Return cached value
+                return returnCachedList(query._query, numResults, query.best);
+            }
+
+            System.out.println(query._tokens.toString());
+
+            ScoredSumTuple origBenchmark = runQuery(query, numResults);
+
+            System.out.println("Original Finished: " + origBenchmark.scored.size() + " Score: " + (origBenchmark.total_score / origBenchmark.queryNorm));
+
+            StringBuilder logs = new StringBuilder("Orig Term :");
+            logs.append(query._query).append(" ").append(origBenchmark.total_score).append("\n");
+
+            //=================End of Original Run===================
+
+            //=============================================
             // Expansion Modes
             //=============================================
 
-
             query.resolve(); // This helps us reduce the amount of candidate locations by
-                                // looking to see if any of them are related
+            // looking to see if any of them are related
 
-	        //=====================================Ambiguous mode====================================
-	        if(query.get_candidate_geo_entities().size() > 1) {
-	        	//Run uniqify
-	        	System.out.println("Uniquify Stage");
-	        	
-	        	//Uniqify Each Candidate
-	            query.uniqify(query.get_candidate_geo_entities());
-	            
-	            HashMap<String, Double> scores = new HashMap<>();
-	            
-	            //Run queries for each and get the best ones
-	            Iterator<GeoEntity> geIter = query.get_candidate_geo_entities().iterator();
-	            
-	            while(geIter.hasNext()) {
-	            	
-	            	GeoEntity ge = geIter.next();
-	            			
-	            	String key = ge.getName().toLowerCase().trim();
-	            	
-	            	int startPoint = geoTermIndex.get(key);
-	            	int insertPoint = startPoint;
-	            	
-	            	System.out.println(geoTermIndex.get(key));
-	            	query._tokens.remove(startPoint);
-	            	
-	            	//Insert into Tokens new
-	            	for(String term: ge.getUniqueName().split("\\s+")) {
-	            		if(insertPoint == query._tokens.size())
-	            			query._tokens.add( term );
-	            		else
-	            			query._tokens.set( insertPoint , term );
-	            		insertPoint++;
-	            	}
-	            	
-	            	ScoredSumTuple newResults = runQuery(query , numResults);
+            //=====================================Ambiguous mode====================================
+            if(query.get_candidate_geo_entities().size() > 1) {
+                //Run uniqify
+                System.out.println("Uniquify Stage");
+
+                //Uniqify Each Candidate
+                query.uniqify(query.get_candidate_geo_entities());
+
+                HashMap<String, Double> scores = new HashMap<>();
+
+                //Run queries for each and get the best ones
+                Iterator<GeoEntity> geIter = query.get_candidate_geo_entities().iterator();
+
+                while(geIter.hasNext()) {
+
+                    GeoEntity ge = geIter.next();
+
+                    //Insert into Tokens new
+                    String[] extraLocationInfo = ge.getUniqueName().split(",");
+                    for(int ind = 1; ind < extraLocationInfo.length; ind++) {
+                        query._tokens.add( extraLocationInfo[ind] );
+                    }
+
+                    ScoredSumTuple newResults = runQuery(query , numResults);
+
+                    //Should I again have a threshold?
+                    if(newResults.total_score / newResults.queryNorm >= 0) {
+                        scores.put(ge.getUniqueName() , newResults.total_score / newResults.queryNorm );
+                        //TODO: cache
+                        //_cache.put(query._query.replace(key, "") + " " + ge.getName(), newResults);
+
+                        //TODO; Populate URLs
+                        //http://localhost:25805/search?query=%22central%20park%22%20hoboken&ranker=geocomprehensive
+                        //String url = "query=" + query._query + "&place=" + ge.getId() + "&ranker=geocomprehensive";
+
+                        //query._ambiguous_URLs.put(ge.getId() , url);
+
+                    } else { //Remove if not qualified
+                        geIter.remove();
+                    }
+
+                    //Remove last Info
+                    for(int ind = 0; ind < extraLocationInfo.length - 1; ind++) {
+                        query._tokens.remove( query._tokens.size() - 1 - ind );
+                    }
+                }
+
+                //Sort candidates by their scores & assign new candidates
+                query.get_candidate_geo_entities().sort( new Comparator<GeoEntity>() {
+                    @Override
+                    public int compare(GeoEntity o1, GeoEntity o2) {
+                        return Double.compare(scores.get(o2.getUniqueName()), scores.get(o1.getUniqueName()));
+                    }
+                });
 
 
+                //Set To Ambiguous MODE
+                query._presentation_mode = GEO_MODE.AMBIGUOUS;
 
-	            	if(newResults.total_score / newResults.queryNorm > _expanded_threshold) {
-	            		scores.put(ge.getUniqueName() , newResults.total_score / newResults.queryNorm );
-	            		//cache
-	                    _cache.put(query._query.replace(key, "") + " " + ge.getName(), newResults);
+            } else if(query.get_candidate_geo_entities().size() == 1) {
+                //=================================Local Expansion Mode===================================
 
+                //Determine if original benchmark is good enough to not expand
+                if(		query.getSupportingTokens().size() > 0 //Only expand if supporting terms exist
+                        &&
+                        (origBenchmark.scored.size() < numResults
+                                || //Original results not good enough
+                                origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold * numResults)) {
 
+                    System.out.println("Expansion");
 
-			            //Populate URLs
-		            	//http://localhost:25805/search?query=%22central%20park%22%20hoboken&ranker=geocomprehensive
-		            	String url = "query=" + query._query.replace(key, "") + "&place=" + ge.getId() + "&ranker=geocomprehensive";
-		            	
-		            	query._ambiguous_URLs.put(ge.getId() , url);
-		            	
-	            	} else { //Remove if not qualified
-	            		geIter.remove();
-	            	}
-	            	
-	            	//Delete from Tokens
-	            	for(int ind = insertPoint - 1; ind >= startPoint; ind--) {
-	            		query._tokens.remove( ind );
-	            	}
-	            	
-	            	if(startPoint == query._tokens.size())
-	            		query._tokens.add( key );
-	            	else
-	            		query._tokens.set( startPoint , key );
-	            }
-	            
-	            //Sort candidates by their scores & assign new candidates
-	            query.get_candidate_geo_entities().sort( new Comparator<GeoEntity>() {
-					@Override
-					public int compare(GeoEntity o1, GeoEntity o2) {
-						return Double.compare(scores.get(o2.getUniqueName()), scores.get(o1.getUniqueName()));
-					}
-	            });
-	            
-	            //Set To Ambiguous MODE
-	            query._presentation_mode = GEO_MODE.AMBIGUOUS;
-	            
-	        } else if(query.get_candidate_geo_entities().size() == 1) {
-	        //=================================Local Expansion Mode===================================
-	        
-		        //Determine if original benchmark is good enough to not expand
-		        if(		supportingTerms //Only expand if supporting terms exist
-		        		&&
-		        		(origBenchmark.scored.size() < numResults 
-		        				|| //Original results not good enough
-		        				origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold * numResults)) {
-		        	
-		        	System.out.println("Expansion");
-		        	
-		        	//Expand Word
-		            query.expand(_max_expansion);
-		            
-		            //Remove old city
-		            query._tokens.remove(query._tokens.size() - 1);
-		
-		            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
-		        	
-		            //Iterator through all nearby cities of each 
-		            while(expQueryIterator.hasNext()) {
-		
-		                //Create new query:
-		                String cityName = expQueryIterator.next().getName().toLowerCase().trim();
-		
-		                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._query); //Dummy query
-		                Vector<String> _new_terms = new Vector<>(query._tokens); //Add non location terms
-		                
-		                //Remove older CityName
-		                _new_terms.add(cityName);
-		
-		                expandedQuery._tokens = _new_terms;
-		                
-		                System.out.println("Expanded Query: " + expandedQuery._tokens.toString());
+                    //Expand Word
+                    query.expand(_max_expansion);
 
-		                ScoredSumTuple newResults = runQuery(expandedQuery , numResults);
-		
-		                //If expansion helps...
-		                double normalizedScore = newResults.total_score / newResults.queryNorm;
-		                if(newResults.total_score == 0)
-		                	normalizedScore = 0.0;
-		                
-		                //Log Results:
-		                logs.append(expandedQuery._query).append(": ").append(normalizedScore);
-		
-		                if( normalizedScore > _expanded_threshold
-		                        &&
-		                        normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
-		
-		                    ((QueryBoolGeo) init_query)._presentation_mode = GEO_MODE.EXPANSION;
-		
-		                    //cache
-		                    _cache.put(expandedQuery._query, newResults);
-		
-		                    logs.append(": Qualified!\n");
-		                    System.out.println(expandedQuery._query + ": qualified with " + normalizedScore);
-		                } else {
-		                    //Remove expanded term if not qualified
-		                    expQueryIterator.remove();
-		
-		                    logs.append(": Unqualified!\n");
-		                    System.out.println(expandedQuery._query + ": unqualified with " + normalizedScore);
-		                }
-		            }
-		            
-		            //Sort Candidates
-		
-		            //Log Expansion queries
-		            if(query._presentation_mode.equals(GEO_MODE.EXPANSION)) {
-		                logs.append("Expansion Terms: ");
-		                for(GeoEntity gEnt : query.get_expanded_geo_entities()) {
-		                    logs.append(gEnt.getName()).append(" ");
-		                }
-		                logs.append("\n");
-		            }
-		            
-		        } else {
-		            //No Expansion
-		            logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
-		                    .append(" Score: ").append(origBenchmark.total_score).append("\n");
-		        }
-	        } else {
-	            //No Expansion Terms
-	            logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
-	                    .append(" Score: ").append(origBenchmark.total_score).append("\n");
-	        }
-	
-	        //Flush Log
-	        try {
-	            BufferedWriter br = new BufferedWriter(new FileWriter("rankerDecision.txt", true));
-	            br.write(logs.toString());
-	            br.close();
-	        } catch(Exception e) {
-	            e.printStackTrace();
-	        }
-	        
-	        return origBenchmark.scored;
+                    Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
+
+                    //Iterator through all nearby cities of each
+                    while(expQueryIterator.hasNext()) {
+
+                        //Create new query:
+                        String cityName = expQueryIterator.next().getName().toLowerCase().trim();
+
+                        QueryBoolGeo expandedQuery = new QueryBoolGeo(query._query); //Dummy query
+                        Vector<String> _new_terms = new Vector<>(query.getSupportingTokens()); //Add non location terms
+
+                        //Remove older CityName
+                        _new_terms.add(cityName);
+
+                        expandedQuery._tokens = _new_terms;
+
+                        System.out.println("Expanded Query: " + expandedQuery._tokens.toString());
+
+                        ScoredSumTuple newResults = runQuery(expandedQuery , numResults);
+
+                        //If expansion helps...
+                        double normalizedScore = newResults.total_score / newResults.queryNorm;
+                        if(newResults.total_score == 0)
+                            normalizedScore = 0.0;
+
+                        //Log Results:
+                        logs.append(expandedQuery._query).append(": ").append(normalizedScore);
+
+                        if( normalizedScore > _expanded_threshold
+                                &&
+                                normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
+
+                            ((QueryBoolGeo) init_query)._presentation_mode = GEO_MODE.EXPANSION;
+
+                            //cache
+                            _cache.put(expandedQuery._query, newResults);
+
+                            logs.append(": Qualified!\n");
+                            System.out.println(expandedQuery._query + ": qualified with " + normalizedScore);
+                        } else {
+                            //Remove expanded term if not qualified
+                            expQueryIterator.remove();
+
+                            logs.append(": Unqualified!\n");
+                            System.out.println(expandedQuery._query + ": unqualified with " + normalizedScore);
+                        }
+                    }
+
+                    //Sort Candidates
+
+                    //Log Expansion queries
+                    if(query._presentation_mode.equals(GEO_MODE.EXPANSION)) {
+                        logs.append("Expansion Terms: ");
+                        for(GeoEntity gEnt : query.get_expanded_geo_entities()) {
+                            logs.append(gEnt.getName()).append(" ");
+                        }
+                        logs.append("\n");
+                    }
+
+                } else {
+                    //No Expansion
+                    logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
+                            .append(" Score: ").append(origBenchmark.total_score).append("\n");
+                }
+            } else {
+                //No Expansion Terms
+                logs.append("Good Enough for Expansion: Size: ").append(origBenchmark.scored.size())
+                        .append(" Score: ").append(origBenchmark.total_score).append("\n");
+            }
+
+            //Flush Log
+            try {
+                BufferedWriter br = new BufferedWriter(new FileWriter("rankerDecision.txt", true));
+                br.write(logs.toString());
+                br.close();
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+
+            return origBenchmark.scored;
         } catch (Exception e) {
-        	e.printStackTrace();
+            e.printStackTrace();
         }
 
         return null;
@@ -397,7 +350,7 @@ public class RankerGeoComprehensive extends Ranker {
                     rankQueue.poll();
                 }
                 docid = doc._docid;
-                
+
                 sum += score;
                 normSum += Math.pow(score, 2);
             }
@@ -411,7 +364,7 @@ public class RankerGeoComprehensive extends Ranker {
 
             Collections.sort(results, Collections.reverseOrder());
 
-            return new ScoredSumTuple(results, sum, Math.sqrt(normSum));
+            return new ScoredSumTuple(results, sum, Math.sqrt(normSum + 1));
         } catch(Exception e) {
             e.printStackTrace();
         }
@@ -438,14 +391,14 @@ public class RankerGeoComprehensive extends Ranker {
             //Normal Tokens
             for(String term : query._tokens) {
                 int docTermFreq = _indexer.documentTermFrequency(term, doc._docid);
-            	//System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
+                //System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
                 score += docTermFreq * //Term Frequency
                         Math.pow(
                                 (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1
                                 ,2) * //IDF
-                        (1 / Math.sqrt(query._tokens.size())); //lengthNorm 
-            	
-            	 //Better Than QL: guatemala
+                        (1 / Math.sqrt(query._tokens.size())); //lengthNorm
+
+                //Better Than QL: guatemala
             	 /* score += Math.log(
                         //Probability in Document
                         ((0.8) * _indexer.documentTermFrequency(term, doc._docid) / doc._numWords )
@@ -459,7 +412,7 @@ public class RankerGeoComprehensive extends Ranker {
             }
 
             score = score * (1 + doc.getPageRank()) * //multiply by pagerank + 1
-            		(foundTerms / query._tokens.size()); //coord
+                    (foundTerms / query._tokens.size()); //coord
 
         } catch(Exception e) {
             e.printStackTrace();

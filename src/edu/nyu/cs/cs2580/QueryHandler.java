@@ -21,7 +21,7 @@ import edu.nyu.cs.cs2580.SearchEngine.Options;
  */
 
 //TODO: DEAL WITH CGI ARGUMENT that signifies whether or not expansion has already been performed
-  // e.g. ...&expanded=true
+// e.g. ...&expanded=true
 class QueryHandler implements HttpHandler {
 
   /**
@@ -236,36 +236,39 @@ class QueryHandler implements HttpHandler {
 
 
       // Ranking.
-      //TODO: implement this
       // LIST OF GEOENTITIES IS WITHIN QBG
       Vector<ScoredDocument> scoredDocs =
               ranker.runQuery(processedQuery, cgiArgs._numResults);
 
-      StringBuffer response = new StringBuffer();
-      switch (cgiArgs._outputFormat) {
-        case TEXT:
-          if(uriPath.equals("/prf")) //Process Pseudo Relevance Feedback
-            constructPRFTextOutput(scoredDocs, response, processedQuery, cgiArgs._numTerms );
-          else if(uriPath.equals("/search"))
-            constructTextOutput(scoredDocs, response);
-
-          respondWithMsg(exchange, response.toString());
-          break;
-        case HTML:
-          constructHtmlOutput(scoredDocs, response, processedQuery);
-          respondWithHtml(exchange, response.toString());
-          break;
-        case TSV:
+      try {
+        StringBuffer response = new StringBuffer();
+        switch (cgiArgs._outputFormat) {
+          case TEXT:
             if(uriPath.equals("/prf")) //Process Pseudo Relevance Feedback
-                constructPRFTextOutput(scoredDocs, response, processedQuery, cgiArgs._numTerms );
+              constructPRFTextOutput(scoredDocs, response, processedQuery, cgiArgs._numTerms );
+            else if(uriPath.equals("/search"))
+              constructTextOutput(scoredDocs, response);
+
+            respondWithMsg(exchange, response.toString());
+            break;
+          case HTML:
+            constructHtmlOutput(scoredDocs, response, processedQuery);
+            respondWithHtml(exchange, response.toString());
+            break;
+          case TSV:
+            if(uriPath.equals("/prf")) //Process Pseudo Relevance Feedback
+              constructPRFTextOutput(scoredDocs, response, processedQuery, cgiArgs._numTerms );
             else
-            	constructTextOutput(scoredDocs, response);
-          respondWithTSVFile(cgiArgs._rankerType.name(), response.toString(), exchange);
-          break;
-        default:
-          // nothing
+              constructTextOutput(scoredDocs, response);
+            respondWithTSVFile(cgiArgs._rankerType.name(), response.toString(), exchange);
+            break;
+          default:
+            // nothing
+        }
+        respondWithMsg(exchange, response.toString());
+      } catch(Exception e) {
+        e.printStackTrace();
       }
-      respondWithMsg(exchange, response.toString());
       System.out.println("Finished query: " + cgiArgs._query);
     } else {
       respondWithMsg(exchange, "Only /search is handled!");

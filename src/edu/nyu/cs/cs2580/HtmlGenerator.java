@@ -198,7 +198,9 @@ public class HtmlGenerator {
                 builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
 
                 builder.append("\";\n" +
-                "      var button_link = \"./search?\" + getStringForNewSearch(non_spatial_query) + \"&best=true\";\n" +
+                "      var button_link = \"./search?\" + getStringForNewSearch(non_spatial_query) + \"&best=true&place=");
+                builder.append(qbg.get_candidate_geo_entities().get(0).getId());
+                builder.append("\";\n" +
                 "\n" +
                 "        $('document').ready(function () {\n" +
                 "            $('#button_zone').append(\"<a class=\\\"btn btn-default\\\" href=\\\"\" + button_link + \"\\\" role=\\\"button\\\">See all results for general area</a>\");\n" +
@@ -384,7 +386,7 @@ public class HtmlGenerator {
         builder.append("</b>");
         if (!qbg.get_expanded_geo_entities().get(0).getStateName().equals("")) {
             builder.append(", ");
-            builder.append(qbg.get_expanded_geo_entities().get(0).getStateName());
+            builder.append(qbg.get_candidate_geo_entities().get(0).getStateName());
         }
         builder.append("</code></h3>\n" +
                 "        <div id=\"population\">\n" +
