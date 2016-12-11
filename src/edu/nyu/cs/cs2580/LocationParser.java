@@ -28,7 +28,7 @@ public class LocationParser {
 			id[i]=i;
 		}
 
-
+		System.out.println("total term frequency: "+_indexer.totalTermFrequency());
 
 
 		String currentStringTested="";
@@ -85,7 +85,7 @@ public class LocationParser {
 			int fre1 = _indexer.corpusTermFrequency(tokens[0]);
 			int fre2 = _indexer.corpusTermFrequency(tokens[1]);
 			int fre3 = _indexer.corpusTermFrequency(tokens[0] + tokens[1]);
-			if(fre3>freq2 && fre3>freq2){
+			if(fre3>0 && (double)fre3/(_indexer.totalTermFrequency()) >= 0.00000029){
 				listOfCandidateLocation.put(tokens[0] +" " + tokens[1],1);
 			}
 			else{
@@ -99,18 +99,23 @@ public class LocationParser {
 			System.out.println(tokens[0] + " " + tokens[1] + " "+ tokens[2] + " " + freqWhole);
 			int fre3= _indexer.corpusTermFrequency(tokens[0] + " "+ tokens[1]);
 			int fre4= _indexer.corpusTermFrequency(tokens[1] + " "+ tokens[2]);
-			if(freqWhole> fre3 && freqWhole>fre4){
+			System.out.println("here: "+   (double)freqWhole/(_indexer.totalTermFrequency() ));
+			if(freqWhole>0 && ((double)freqWhole/(_indexer.totalTermFrequency()) > 0.00000029)){
+				System.out.println("A..");
 				listOfCandidateLocation.put(tokens[0] + " " + tokens[1] + " "+ tokens[2],2);
 			}
 			else if(fre3 > fre4){
+				System.out.println("B..");
 				listOfCandidateLocation.put(tokens[0] + " "+ tokens[1],1);
 				listOfCandidateLocation.put(tokens[2],2);
 			}
 			else if (fre3 < fre4){
+				System.out.println("C..");
 				listOfCandidateLocation.put(tokens[0],0);
 				listOfCandidateLocation.put(tokens[1] + " " +tokens[2],2);
 			}
 			else if(fre3 == fre4) {
+				System.out.println("D..");
 				listOfCandidateLocation.put(tokens[0],0);
 				listOfCandidateLocation.put(tokens[1],1);
 				listOfCandidateLocation.put(tokens[2],2);
@@ -119,36 +124,47 @@ public class LocationParser {
 		}
 
 		else {
-			int flag=0;
-			String pendingToken = tokens[0];
-			int pendingLastId=0;
-			for (int i = 0; i < (length - 1); i++) {
-				if (spaces[i] == 0) {
-					pendingToken += " " + tokens[i + 1];
-					pendingLastId = id[i+1];
-					if(i == length-2 ){
-						flag=1;
+
+			int fr = _indexer.corpusTermFrequency(givenQuery);
+			System.out.println("fr: "+fr);
+			System.out.println("here again : "+   (double)fr/(_indexer.totalTermFrequency() ));
+			if (fr > 0 && ((double)fr / (_indexer.totalTermFrequency()) >= 0.00000029)) {
+				listOfCandidateLocation.put(givenQuery, length - 1);
+			} else {
+
+
+				int flag = 0;
+				String pendingToken = tokens[0];
+				int pendingLastId = 0;
+				for (int i = 0; i < (length - 1); i++) {
+					if (spaces[i] == 0) {
+						pendingToken += " " + tokens[i + 1];
+						pendingLastId = id[i + 1];
+						if (i == length - 2) {
+							flag = 1;
+						}
+					} else {
+						listOfCandidateLocation.put(pendingToken, pendingLastId);
+						System.out.println("sizeD: " + listOfCandidateLocation.size());
+
+						pendingToken = tokens[i + 1];
+						pendingLastId = id[i + 1];
+
+						//flag=1;
 					}
-				} else {
-					listOfCandidateLocation.put(pendingToken,pendingLastId);
-					System.out.println("sizeD: "+ listOfCandidateLocation.size());
-
-					pendingToken = tokens[i + 1];
-					pendingLastId = id[i+1];
-
-					//flag=1;
 				}
-			}
-			//if(flag==1){
-			//	pendingToken = pendingToken + " " + tokens[length-1];
-			//}
-			//else{
-			//	pendingToken=tokens[length - 1];
-			//}
+				//if(flag==1){
+				//	pendingToken = pendingToken + " " + tokens[length-1];
+				//}
+				//else{
+				//	pendingToken=tokens[length - 1];
+				//}
 
-			listOfCandidateLocation.put(pendingToken,pendingLastId);
-			System.out.println("sizeC: "+ listOfCandidateLocation.size());
+				listOfCandidateLocation.put(pendingToken, pendingLastId);
+				System.out.println("sizeC: " + listOfCandidateLocation.size());
+			}
 		}
+
 
 		System.out.println("size: "+ listOfCandidateLocation.size());
 		for(Map.Entry<String,Integer> entry: listOfCandidateLocation.entrySet()){
@@ -253,21 +269,21 @@ public class LocationParser {
 		for(int i=0; i<size3; i++){
 			for(int j=0; j<size3; j++){
 
-					dummy = non_location_terms.get(i) + " " + non_location_terms.get(j);
-					//System.out.println("dummy: "+dummy);
-					List<GeoEntity> localList = _gkb.getCandidates(dummy);
-					if (!localList.isEmpty()) {
-						if (listOfCandidateLocation.get(non_location_terms.get(i)) < listOfCandidateLocation.get(non_location_terms.get(j))) {
-							location_terms_string.add(dummy);
-							for (GeoEntity g : localList) {
-								location_terms.add(g);
-							}
-							indexesToRemove[index2] = i;
-							index2 += 1;
-							indexesToRemove[index2] = j;
-							index2 += 1;
+				dummy = non_location_terms.get(i) + " " + non_location_terms.get(j);
+				//System.out.println("dummy: "+dummy);
+				List<GeoEntity> localList = _gkb.getCandidates(dummy);
+				if (!localList.isEmpty()) {
+					if (listOfCandidateLocation.get(non_location_terms.get(i)) < listOfCandidateLocation.get(non_location_terms.get(j))) {
+						location_terms_string.add(dummy);
+						for (GeoEntity g : localList) {
+							location_terms.add(g);
 						}
+						indexesToRemove[index2] = i;
+						index2 += 1;
+						indexesToRemove[index2] = j;
+						index2 += 1;
 					}
+				}
 			}
 		}
 
