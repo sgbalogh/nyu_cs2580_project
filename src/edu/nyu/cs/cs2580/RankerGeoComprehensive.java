@@ -293,7 +293,7 @@ public class RankerGeoComprehensive extends Ranker {
             while ((doc = (DocumentIndexed) _indexer.nextDoc(query, docid)) != null) {
                 double score = scoreDocumentQL(query, doc);
                 rankQueue.add(new ScoredDocument(doc, score));
-                System.out.println(doc.getTitle() + " " + score);
+                //System.out.println(doc.getTitle() + " " + score);
 
                 //Make sure top X documents are in memory
                 if (rankQueue.size() > numResults) {

@@ -229,6 +229,7 @@ class QueryHandler implements HttpHandler {
       //===============================================
 
       QueryBoolGeo processedQuery = _location_parser.parseQuery(cgiArgs._query);
+      System.out.println("Location Parser: FINISHED PARSING QUERY");
 
 
       //TODO: Look for CGI ARGUMENTs for best and cached, flip flags if found in processQuery
