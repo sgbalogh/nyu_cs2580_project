@@ -37,6 +37,12 @@ class QueryHandler implements HttpHandler {
 
     // How many terms to return
     private int _numTerms= 10;
+    
+    // Defined GeoID
+    private int _geoID = -1;
+    
+    // Get the best
+    private boolean _best = false;
 
     // The type of the ranker we will be using.
     public enum RankerType {
@@ -88,7 +94,19 @@ class QueryHandler implements HttpHandler {
           } catch (IllegalArgumentException e) {
             // Ignored, search engine should never fail upon invalid user input.
           }
-        }
+        } else if (key.equals("place")) {
+            try {
+            	_geoID = Integer.parseInt(val);
+            } catch (IllegalArgumentException e) {
+              // Ignored, search engine should never fail upon invalid user input.
+            }
+        } else if (key.equals("best")) {
+	         try {
+	         	_best = Boolean.parseBoolean(val);
+	         } catch (IllegalArgumentException e) {
+	           // Ignored, search engine should never fail upon invalid user input.
+	         }
+	      }
       }  // End of iterating over params
     }
   }
@@ -228,12 +246,11 @@ class QueryHandler implements HttpHandler {
       // Feed it a string of the entire user-issued query
       //===============================================
 
-      QueryBoolGeo processedQuery = _location_parser.parseQuery(cgiArgs._query);
+      QueryBoolGeo processedQuery = _location_parser.parseQuery(cgiArgs._query, cgiArgs._geoID, null);
+      processedQuery.best = cgiArgs._best;
       System.out.println("Location Parser: FINISHED PARSING QUERY");
 
-
       //TODO: Look for CGI ARGUMENTs for best and cached, flip flags if found in processQuery
-
 
       // Ranking.
       // LIST OF GEOENTITIES IS WITHIN QBG

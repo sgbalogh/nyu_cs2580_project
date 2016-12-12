@@ -151,15 +151,7 @@ public class RankerGeoComprehensive extends Ranker {
 	            	//Should I again have a threshold?
 	            	if(newResults.total_score / newResults.queryNorm >= 0) {
 	            		scores.put(ge.getUniqueName() , newResults.total_score / newResults.queryNorm );
-	            		//TODO: cache
-	                    //_cache.put(query._query.replace(key, "") + " " + ge.getName(), newResults);
-	                    
-			            //TODO; Populate URLs
-		            	//http://localhost:25805/search?query=%22central%20park%22%20hoboken&ranker=geocomprehensive
-		            	//String url = "query=" + query._query + "&place=" + ge.getId() + "&ranker=geocomprehensive";
-		            	
-		            	//query._ambiguous_URLs.put(ge.getId() , url);
-		            	
+
 	            	} else { //Remove if not qualified
 	            		geIter.remove();
 	            	}
@@ -197,6 +189,11 @@ public class RankerGeoComprehensive extends Ranker {
 		        	//Expand Word
 		            query.expand(_max_expansion);
 		            
+	                //Remove older CityName:
+	                //===============================================================
+		            query._tokens = new Vector<>(query.getSupportingTokens());
+	                //===============================================================
+		            
 		            Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
 		        	
 		            //Iterator through all nearby cities of each 
@@ -208,7 +205,7 @@ public class RankerGeoComprehensive extends Ranker {
 		                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._query); //Dummy query
 		                Vector<String> _new_terms = new Vector<>(query.getSupportingTokens()); //Add non location terms
 		                
-		                //Remove older CityName
+		                //Add new cityname
 		                _new_terms.add(cityName);
 		
 		                expandedQuery._tokens = _new_terms;

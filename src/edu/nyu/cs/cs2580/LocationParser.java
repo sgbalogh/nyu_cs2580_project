@@ -1,5 +1,7 @@
 package edu.nyu.cs.cs2580;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 /**
  * Created by stephen on 12/3/16.
  */
@@ -14,13 +16,34 @@ public class LocationParser {
 	}
 	
 	//Logistic Regression Test
-	private QueryBoolGeo langModel(String givenQuery) {
+	private QueryBoolGeo langModel(String givenQuery, int geoID, String uniqueNameList) {
 		givenQuery = givenQuery.toLowerCase();
 		int k = 3; //Max N-Gram Size 
 		try {
-			String[] seperatedTerms = givenQuery.split("\\s+");
-			double[] scores = new double[seperatedTerms.length];
-			int[] pointers = new int[seperatedTerms.length];
+			List<String> seperatedTerms = new ArrayList<String>();
+			
+			//Split by spaces or quotes
+		    Matcher m = Pattern.compile("([^\"\\s]+|[^\"]\\S+|\".*?\")\\s*").matcher(givenQuery);
+		    while (m.find()) {
+		      String token = m.group(1).toLowerCase().replaceAll("[^A-Za-z0-9\"\\s]", "");
+		      System.out.println(token);
+		      //If starts with quotes, it's a phrase
+		      if(token.startsWith("\"")) {
+		        token = token.replace("\"", "").trim();
+		      } else {
+		        token = token.trim();
+
+		        //Do not include standard stop words if not phrase
+		        //if(stopWords.contains(token))
+		        //  continue;
+		      }
+
+		      if(token.length() > 0)
+		    	  seperatedTerms.add(token);
+		    }
+			
+			double[] scores = new double[seperatedTerms.size()];
+			int[] pointers = new int[seperatedTerms.size()];
 			
 			System.out.println("Orig Terms: " + givenQuery);
 			
@@ -28,14 +51,15 @@ public class LocationParser {
 			for(int ind = 0; ind < scores.length; ind++) {
 				double bestScore = Double.NEGATIVE_INFINITY;
 				int bestPt = 0;
-				String term = seperatedTerms[ind];
+				String term = seperatedTerms.get(ind);
 				String remainingTerm = "";
 				for(int n = ind; n >= Math.max(0, ind - k + 1); n--) {
 					if(n != ind) {
-						term = seperatedTerms[n] + " " + term;
-						remainingTerm = seperatedTerms[n] + " " + remainingTerm;
+						term = seperatedTerms.get(n) + " " + term;
+						remainingTerm = seperatedTerms.get(n) + " " + remainingTerm;
 					}
 					double scoreTest = score(term, remainingTerm);
+					//System.out.println(scoreTest + " " + term);
 					double score = scoreTest + (n - 1 >= 0? scores[n - 1]: 0);
 					if(score > bestScore) {
 						bestScore = score;
@@ -54,9 +78,9 @@ public class LocationParser {
 				int start = pointers[counter];
 				while(counter >= start) {
 					if(buff.length() == 0)
-						buff = seperatedTerms[counter];
+						buff = seperatedTerms.get(counter);
 					else
-						buff = seperatedTerms[counter] + " " + buff;
+						buff = seperatedTerms.get(counter) + " " + buff;
 					
 					if(counter == start)
 						break;
@@ -71,9 +95,15 @@ public class LocationParser {
 			//Check for Locations
 			QueryBoolGeo toReturn = new QueryBoolGeo(givenQuery);
 			
+			boolean placeDefined = (geoID >= 0? true: false);
+			
+			if(placeDefined) {
+				toReturn.get_candidate_geo_entities().add(_gkb.getDefinedLocation(geoID));
+			}
+			
 			for(String term : segmentedTerms) {
 				List<GeoEntity> cands = _gkb.getCandidates(term);
-				if(cands.isEmpty()) {
+				if( placeDefined || cands.isEmpty() ) {
 					toReturn.getSupportingTokens().add(term);
 				} else {
 					toReturn.populateGeoEntities(cands);
@@ -92,7 +122,13 @@ public class LocationParser {
 	private double score(String term, String remainingTerm) { //Simple 
 		try{ 
 			double remainingCount = (remainingTerm.length() > 0? _indexer.corpusTermFrequency(remainingTerm):_indexer.totalTermFrequency());
+			if(remainingCount < 50) { //Threshold
+				remainingCount = _indexer.totalTermFrequency();
+			}
 			double score = Math.log( (_indexer.corpusTermFrequency(term) / remainingCount + 1) + (1.0 / _indexer.totalTermFrequency()));
+			//System.out.println(term + " " + remainingTerm);
+			//System.out.println(_indexer.corpusTermFrequency(term) + " " + _indexer.corpusTermFrequency(remainingTerm));
+			
 			return score;
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -103,10 +139,10 @@ public class LocationParser {
 	//================================
 	//| Main API Query Handler Calls |
 	//================================
-	public QueryBoolGeo parseQuery(String givenQuery ){
+	public QueryBoolGeo parseQuery(String givenQuery, int geoID, String uname){
 		
 		if(true)
-			return langModel(givenQuery);
+			return langModel(givenQuery, geoID, uname);
 		
 		List<String> listOfCandidateLocation = new ArrayList<>();
 		

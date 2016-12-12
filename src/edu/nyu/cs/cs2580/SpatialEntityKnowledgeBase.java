@@ -56,6 +56,10 @@ public class SpatialEntityKnowledgeBase implements Serializable {
             return true;
         }
     }
+    
+    public GeoEntity getDefinedLocation(Integer geoID) {
+    	return _entity_map.get(geoID);
+    }
 
     private void updateLookupMaps(GeoEntity toAdd) {
         if (toAdd.type.equals("COUNTY")) {
