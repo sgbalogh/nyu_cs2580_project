@@ -8,7 +8,7 @@ public class LocationParser {
 
 	private SpatialEntityKnowledgeBase _gkb;
 	private Indexer _indexer;
-	private Map<String,Integer> listOfCandidateLocation = new HashMap<>();
+	private static Map<String,Integer> listOfCandidateLocation = new HashMap<>();
 	private QueryBoolGeo toReturn;
 	public LocationParser(Indexer indexer, SpatialEntityKnowledgeBase gkb) {
 		_indexer = indexer;
@@ -19,7 +19,7 @@ public class LocationParser {
 
 	public QueryBoolGeo parseQuery(String givenQuery, int geoID, String uname){
 
-		if (true)
+		if (false)
 			return langModel(givenQuery, geoID, uname);
 
 		listOfCandidateLocation.clear();
@@ -168,10 +168,34 @@ public class LocationParser {
 			System.out.println("string: "+ entry.getKey()+" pendingId: "+entry.getValue());
 		}
 
-		return forEachSegments();
+
+		if(geoID>=0){
+			List<GeoEntity> location_terms = new ArrayList<>();
+			List<String> non_location_terms = new ArrayList<>();
+			for(Map.Entry<String,Integer> entry: listOfCandidateLocation.entrySet()){
+					non_location_terms.add(entry.getKey());
+					List<GeoEntity> localList = _gkb.getCandidates(entry.getKey());
+					for (GeoEntity g : localList) {
+						location_terms.add(g);
+					}
+
+			}
+			toReturn.setSupportingTokens(non_location_terms);
+			toReturn.populateGeoEntities(location_terms);
+
+
+			toReturn.get_candidate_geo_entities().add(_gkb.getDefinedLocation(geoID));
+			for(String location_term: uname.split(",")){
+				toReturn._tokens.add(location_term);
+			}
+
+			return toReturn;
+		}
+		else {
+			return forEachSegments();
+		}
 
 	}
-
 	public QueryBoolGeo forEachSegments(){
 		List<GeoEntity> location_terms = new ArrayList<>();
 		List<String> location_terms_string = new ArrayList<>();
@@ -217,6 +241,8 @@ public class LocationParser {
 
 		else {
 
+
+			int flag2=0;
 			for (int i = 0; i < size1; i++) {
 				for (int j = 0; j < size2; j++) {
 
@@ -239,11 +265,14 @@ public class LocationParser {
 						}
 					} else {
 						System.out.println("hereC");
-						localList = _gkb.getCandidates(location_terms_string.get(i));
+						if(flag2==0) {
+							localList = _gkb.getCandidates(location_terms_string.get(i));
 
-						for (GeoEntity g : localList) {
-							location_terms.add(g);
+							for (GeoEntity g : localList) {
+								location_terms.add(g);
 
+							}
+							flag2 = 1;
 						}
 						System.out.println("in else...");
 						index += 1;
@@ -255,6 +284,7 @@ public class LocationParser {
 
 				}
 				index = 0;
+				flag2=0;
 
 			}
 		}
@@ -311,10 +341,30 @@ public class LocationParser {
 		//toReturn._tokens = temp;
 
 		System.out.println("size:" +location_terms.size());
+
+
+
+
 		return toReturn;
 	}
 
-	public static List<String> removeStopWords(String s){
+	public static List<String> removeStopWords(String s1){
+		int p,q;
+		String s=s1;
+
+		while(s.contains("\"")){
+			p = s.indexOf("\"");
+			q = s.indexOf("\"",s.indexOf("\"") + 1);
+			listOfCandidateLocation.put(s.substring(p+1,q),-1);
+			System.out.println("removing quotations: "+s.substring(p,q+1));
+			s=s.replace(s.substring(p,q+1),"");
+			System.out.println("updated s: "+s);
+		}
+		System.out.println("updated s: "+s);
+
+
+
+
 		String[] given=s.split("\\s+");
 		List<String> toReturn = new ArrayList<>();
 		int l = given.length;
@@ -357,6 +407,7 @@ public class LocationParser {
 
 		return toReturn;
 	}
+
 
 
 	//===========================Language Model========================================
@@ -435,7 +486,7 @@ public class LocationParser {
 				toReturn._tokens.add(term);
 			}
 			if (uname != null) {
-				for (String location_term : uname.split("\\s+")) {
+				for (String location_term : uname.split(",")) {
 					toReturn._tokens.add(location_term);
 				}
 			}

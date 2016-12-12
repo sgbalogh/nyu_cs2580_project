@@ -212,7 +212,7 @@ public class SpatialEntityKnowledgeBase implements Serializable {
                         .append(", \"properties\": { \"name\": \"").append(entity.getName()).append("\", \"state\": \"")
                         .append(entity.getStateName())
                         .append("\", \"type\": \"candidate\", \"addl_terms\": \"")
-                        .append(entity.getUniqueName().replaceAll(",", " "))
+                        .append(entity.getUniqueName())
                         .append("\", \"population\": ").append(entity.population).append("}}");
             }
             json.append("]}");
