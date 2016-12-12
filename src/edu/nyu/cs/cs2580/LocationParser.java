@@ -213,6 +213,8 @@ public class LocationParser {
 
 		else {
 
+
+			int flag2=0;
 			for (int i = 0; i < size1; i++) {
 				for (int j = 0; j < size2; j++) {
 
@@ -235,11 +237,14 @@ public class LocationParser {
 						}
 					} else {
 						System.out.println("hereC");
-						localList = _gkb.getCandidates(location_terms_string.get(i));
+						if(flag2==0) {
+							localList = _gkb.getCandidates(location_terms_string.get(i));
 
-						for (GeoEntity g : localList) {
-							location_terms.add(g);
+							for (GeoEntity g : localList) {
+								location_terms.add(g);
 
+							}
+							flag2 = 1;
 						}
 						System.out.println("in else...");
 						index += 1;
@@ -251,6 +256,7 @@ public class LocationParser {
 
 				}
 				index = 0;
+				flag2=0;
 
 			}
 		}
