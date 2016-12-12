@@ -89,6 +89,20 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		}
 	}
 
+	public void listf(String directoryName, ArrayList<File> files) {
+		File directory = new File(directoryName);
+
+		// get all the files from a directory
+		File[] fList = directory.listFiles();
+		for (File file : fList) {
+			if (file.isFile()) {
+				files.add(file);
+			} else if (file.isDirectory()) {
+				listf(file.getAbsolutePath(), files);
+			}
+		}
+	}
+
 	@Override
 	public void constructIndex() throws Exception {
 		//Instantiate Docs
@@ -135,10 +149,23 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		//Build Documents + get all unique words
 		//Estimate byte size
 		int docInCorpus = 0;
-		for (File fileEntry : corpusDirectory.listFiles()) {
-			if (fileEntry.isFile()) {
-				String[] docWords = parseDocument(fileEntry);
 
+		ArrayList<File> corpus_files = new ArrayList<>();
+		listf(_options._corpusPrefix, corpus_files);
+
+		System.out.println("Number of files: " + corpus_files.size());
+
+
+		for (File fileEntry : corpus_files) {
+			if (fileEntry.isFile()) {
+				String[] docWords = {};
+				System.out.println(docInCorpus);
+				System.out.println(fileEntry.getName());
+				try {
+					docWords = parseDocument(fileEntry);
+				} catch (Exception e) {
+					continue;
+				}
 				if(docWords.length <= 1)
 					continue;
 
