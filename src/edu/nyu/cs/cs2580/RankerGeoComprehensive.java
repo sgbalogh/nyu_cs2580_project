@@ -191,14 +191,17 @@ public class RankerGeoComprehensive extends Ranker {
                 //Determine if original benchmark is good enough to not expand
                 if(		query.getSupportingTokens().size() > 0 //Only expand if supporting terms exist
                         &&
-                        (origBenchmark.scored.size() < numResults
+                        (origBenchmark.scored.size() <= numResults
                                 || //Original results not good enough
                                 origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold * numResults)) {
 
                     System.out.println("Expansion");
 
                     //Expand Word
+
                     query.expand(_max_expansion);
+
+                    query._tokens = new Vector<>(query.getSupportingTokens());
 
                     Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
 

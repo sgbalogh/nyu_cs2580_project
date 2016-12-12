@@ -172,6 +172,13 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         return true;
     }
 
+    public GeoEntity getDefinedLocation(int geoid) {
+        if (this._entity_map.containsKey(geoid)) {
+            return this._entity_map.get(geoid);
+        }
+        return null;
+    }
+
     public void addNeighbors(HashMap<Integer, LinkedList<Integer>> nearestNeighbors) {
         for (Map.Entry<Integer, LinkedList<Integer>> entry : nearestNeighbors.entrySet()) {
             Integer entityId = entry.getKey();
@@ -204,7 +211,9 @@ public class SpatialEntityKnowledgeBase implements Serializable {
                         .append(entity.longitude).append(", ").append(entity.latitude).append("]}")
                         .append(", \"properties\": { \"name\": \"").append(entity.getName()).append("\", \"state\": \"")
                         .append(entity.getStateName())
-                        .append("\", \"type\": \"candidate\", \"population\": ").append(entity.population).append("}}");
+                        .append("\", \"type\": \"candidate\", \"addl_terms\": \"")
+                        .append(entity.getUniqueName().replaceAll(",", " "))
+                        .append("\", \"population\": ").append(entity.population).append("}}");
             }
             json.append("]}");
             return json.toString();

@@ -319,7 +319,7 @@ public class HtmlGenerator {
                 builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
 
                 builder.append("\";\n" +
-                "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id;\n" +
+                "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id + \"&uname=\" + feature.properties.addl_terms;\n" +
                 "            var popup_text = feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name;\n" +
                 "            var link_text = feature.properties.name;\n" +
                 "            if (feature.properties.state != null) {\n" +

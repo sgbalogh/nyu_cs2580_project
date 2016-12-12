@@ -17,7 +17,11 @@ public class LocationParser {
 	}
 
 
-	public QueryBoolGeo parseQuery(String givenQuery){
+	public QueryBoolGeo parseQuery(String givenQuery, int geoID, String uname){
+
+		if (true)
+			return langModel(givenQuery, geoID, uname);
+
 		listOfCandidateLocation.clear();
 		toReturn = new QueryBoolGeo(givenQuery);
 		System.out.println(givenQuery);
@@ -358,7 +362,7 @@ public class LocationParser {
 	//===========================Language Model========================================
 
 	//Logistic Regression Test
-	private QueryBoolGeo langModel(String givenQuery) {
+	private QueryBoolGeo langModel(String givenQuery, int geoID, String uname) {
 		givenQuery = givenQuery.toLowerCase();
 		int k = 3; //Max N-Gram Size
 		try {
@@ -414,10 +418,15 @@ public class LocationParser {
 
 			//Check for Locations
 			QueryBoolGeo toReturn = new QueryBoolGeo(givenQuery);
+			boolean placeDefined = (geoID >= 0? true: false);
+
+			if (placeDefined) {
+				toReturn.get_candidate_geo_entities().add(_gkb.getDefinedLocation(geoID));
+			}
 
 			for(String term : segmentedTerms) {
 				List<GeoEntity> cands = _gkb.getCandidates(term);
-				if(cands.isEmpty()) {
+				if(placeDefined || cands.isEmpty()) {
 					toReturn.getSupportingTokens().add(term);
 				} else {
 					System.out.println("Location: " + term);
@@ -425,7 +434,11 @@ public class LocationParser {
 				}
 				toReturn._tokens.add(term);
 			}
-
+			if (uname != null) {
+				for (String location_term : uname.split("\\s+")) {
+					toReturn._tokens.add(location_term);
+				}
+			}
 			return toReturn;
 		} catch( Exception e) {
 			e.printStackTrace();
