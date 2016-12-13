@@ -11,13 +11,11 @@ public class HtmlGenerator {
     List<ScoredDocument> documents;
     StringBuilder builder;
     QueryBoolGeo qbg;
-    SpatialEntityKnowledgeBase gkb;
 
-    public HtmlGenerator(List<ScoredDocument> docs, QueryBoolGeo query, SpatialEntityKnowledgeBase gkb) {
+    public HtmlGenerator(List<ScoredDocument> docs, QueryBoolGeo query) {
         this.documents = docs;
         this.qbg = query;
         this.builder = new StringBuilder();
-        this.gkb = gkb;
         this.construct();
     }
 
@@ -47,14 +45,6 @@ public class HtmlGenerator {
 
     private String generateGeoJSONforAmbiguous() {
         return SpatialEntityKnowledgeBase.makeDisambiguateGeoJSON(qbg.get_candidate_geo_entities());
-    }
-
-    private String generateGeoJSONforAmbiguousCounty() {
-        return SpatialEntityKnowledgeBase.makeDisambiguateGeoJSONCounty(qbg.get_candidate_geo_entities(), gkb);
-    }
-
-    private String generateGeoJSONforAmbiguousState() {
-        return SpatialEntityKnowledgeBase.makeDisambiguateGeoJSONState(qbg.get_candidate_geo_entities(), gkb);
     }
 
     private String generateGeoJSONforExpansion() {
@@ -184,9 +174,6 @@ public class HtmlGenerator {
                 "          var components = params[i].split('=');\n" +
                 "          if (components[0].toLowerCase() == 'query') {\n" +
                 "            params[i] = \"query=\" + string;\n" +
-                "          } else if (components[0].toLowerCase() == 'best' || components[0].toLowerCase() == 'uname' || components[0].toLowerCase() == 'place') {\n" +
-                "            params.splice(i, 1);\n" +
-                "            i--;\n"+
                 "          }\n" +
                 "        }\n" +
                 "        return params.join(\"&\");\n" +
@@ -207,13 +194,13 @@ public class HtmlGenerator {
                 "\n" +
                 "       var non_spatial_query = \"");
 
-                // HERE we want to insert the non-spatial terms:
-                builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
+        // HERE we want to insert the non-spatial terms:
+        builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
 
-                builder.append("\";\n" +
+        builder.append("\";\n" +
                 "      var button_link = \"./search?\" + getStringForNewSearch(non_spatial_query) + \"&best=true&place=");
-                builder.append(qbg.get_candidate_geo_entities().get(0).getId());
-                builder.append("\";\n" +
+        builder.append(qbg.get_candidate_geo_entities().get(0).getId());
+        builder.append("\";\n" +
                 "\n" +
                 "        $('document').ready(function () {\n" +
                 "            $('#button_zone').append(\"<a class=\\\"btn btn-default\\\" href=\\\"\" + button_link + \"\\\" role=\\\"button\\\">See all results for general area</a>\");\n" +
@@ -269,9 +256,9 @@ public class HtmlGenerator {
                 "        <div id=\"map\">\n" +
                 "        </div><br>\n" +
                 "<div class=\"well well-sm\">\n" +
-                        "          <ol id=\"amb_links\">\n" +
-                        "          </ol>\n" +
-                        "        </div>" +
+                "          <ol id=\"amb_links\">\n" +
+                "          </ol>\n" +
+                "        </div>" +
                 "    </div>\n" +
                 "\n" +
                 "\n" +
@@ -282,12 +269,6 @@ public class HtmlGenerator {
                 "\n" +
                 "    var geojson = ");
         builder.append(this.generateGeoJSONforAmbiguous());
-        builder.append(";\n" +
-                "var geojson_county = ");
-        builder.append(this.generateGeoJSONforAmbiguousCounty());
-        builder.append(";\n" +
-                "var geojson_state = ");
-        builder.append(this.generateGeoJSONforAmbiguousState());
         builder.append(";\n" +
                 "\n" +
                 "    var tiles = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {\n" +
@@ -317,92 +298,7 @@ public class HtmlGenerator {
                 "        opacity: .8,\n" +
                 "        fillOpacity: 0.8\n" +
                 "    };\n" +
-                "    //L.circle([ -90.19789, 38.62727], 50000).addTo(map);\n");
-        builder.append("L.geoJSON(geojson_state, { " +
-
-                "        pointToLayer: function (feature, latlng) {\n" +
-                        "            switch (feature.properties.type) {\n" +
-                        "                case \"candidate\":\n" +
-                        "                {\n" +
-                        "                    return L.circleMarker(latlng, marker_primary)\n" +
-                        "                }\n" +
-                        "                    ;\n" +
-                        "                case \"expanded\":\n" +
-                        "                {\n" +
-                        "                    return L.circleMarker(latlng, marker_expanded)\n" +
-                        "                }\n" +
-                        "            }\n" +
-                        "        },\n" +
-                        "onEachFeature: function (feature, layer) {\n" +
-                        "            var non_location_q = \"");
-        // INSERT NON LOCATION QUERY HERE
-        builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
-
-        builder.append("\";\n" +
-                        "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id + \"&uname=\" + feature.properties.addl_terms;\n" +
-                        "            var popup_text = feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name;\n" +
-                        "            var link_text = feature.properties.name;\n" +
-                        "            if (feature.properties.state != null) {\n" +
-                        "              popup_text += \"<br><b>\" + feature.properties.state + \"</b>\";\n" +
-                        "              link_text += \", \" + feature.properties.state;\n" +
-                        "            }\n" +
-                        "            $('#amb_links').append(\"<li><a href=\\\"\" + \"./search?\" + request_url + \"\\\">\" + link_text + \"</a></li>\");\n" +
-                        "            layer.bindPopup(popup_text);\n" +
-                        "            layer.on('mouseover', function (e) {\n" +
-                        "                this.openPopup();\n" +
-                        "            });\n" +
-                        "            layer.on('mouseout', function (e) {\n" +
-                        "                this.closePopup();\n" +
-                        "            });\n" +
-                        "            layer.on('click', function (e) {\n" +
-                        "              console.log(request_url);\n" +
-                        "              window.location.href = \"./search?\" + request_url;\n" +
-                        "            })\n" +
-                        "        }\n" +
-                        "    }).addTo(map);");
-        builder.append("L.geoJSON(geojson_county, { " +
-
-                "        pointToLayer: function (feature, latlng) {\n" +
-                "            switch (feature.properties.type) {\n" +
-                "                case \"candidate\":\n" +
-                "                {\n" +
-                "                    return L.circleMarker(latlng, marker_primary)\n" +
-                "                }\n" +
-                "                    ;\n" +
-                "                case \"expanded\":\n" +
-                "                {\n" +
-                "                    return L.circleMarker(latlng, marker_expanded)\n" +
-                "                }\n" +
-                "            }\n" +
-                "        },\n" +
-                "onEachFeature: function (feature, layer) {\n" +
-                "            var non_location_q = \"");
-        // INSERT NON LOCATION QUERY HERE
-        builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
-
-        builder.append("\";\n" +
-                "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id + \"&uname=\" + feature.properties.addl_terms;\n" +
-                "            var popup_text = feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name;\n" +
-                "            var link_text = feature.properties.name;\n" +
-                "            if (feature.properties.state != null) {\n" +
-                "              popup_text += \"<br><b>\" + feature.properties.state + \"</b>\";\n" +
-                "              link_text += \", \" + feature.properties.state;\n" +
-                "            }\n" +
-                "            $('#amb_links').append(\"<li><a href=\\\"\" + \"./search?\" + request_url + \"\\\">\" + link_text + \"</a></li>\");\n" +
-                "            layer.bindPopup(popup_text);\n" +
-                "            layer.on('mouseover', function (e) {\n" +
-                "                this.openPopup();\n" +
-                "            });\n" +
-                "            layer.on('mouseout', function (e) {\n" +
-                "                this.closePopup();\n" +
-                "            });\n" +
-                "            layer.on('click', function (e) {\n" +
-                "              console.log(request_url);\n" +
-                "              window.location.href = \"./search?\" + request_url;\n" +
-                "            })\n" +
-                "        }\n" +
-                "    }).addTo(map);");
-        builder.append(
+                "    //L.circle([ -90.19789, 38.62727], 50000).addTo(map);\n" +
                 "    L.geoJSON(geojson, {\n" +
                 "        pointToLayer: function (feature, latlng) {\n" +
                 "            switch (feature.properties.type) {\n" +
@@ -419,10 +315,10 @@ public class HtmlGenerator {
                 "        },\n" +
                 "onEachFeature: function (feature, layer) {\n" +
                 "            var non_location_q = \"");
-                // INSERT NON LOCATION QUERY HERE
-                builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
+        // INSERT NON LOCATION QUERY HERE
+        builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
 
-                builder.append("\";\n" +
+        builder.append("\";\n" +
                 "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id + \"&uname=\" + feature.properties.addl_terms;\n" +
                 "            var popup_text = feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name;\n" +
                 "            var link_text = feature.properties.name;\n" +
@@ -556,8 +452,6 @@ public class HtmlGenerator {
                 "            }\n" +
                 "        },\n" +
                 "        onEachFeature: function (feature, layer) {\n" +
-                "            var non_location_q = \"data mining\";\n" +
-                "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id; // + \"&uname=\" + feature.properties.addl_terms;\n" +
                 "            layer.bindPopup(feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name);\n" +
                 "            layer.on('mouseover', function (e) {\n" +
                 "                this.openPopup();\n" +
@@ -566,9 +460,7 @@ public class HtmlGenerator {
                 "                this.closePopup();\n" +
                 "            });\n" +
                 "            layer.on('click', function (e) {\n" +
-                "              if (feature.properties.type != 'primary') {\n" +
-                "                window.location.href = \"./search?\" + request_url;\n" +
-                "              }\n" +
+                "                window.location.href = \"./search?hi there\"\n" +
                 "            })\n" +
                 "        }\n" +
                 "    }).addTo(map);\n" +
@@ -587,4 +479,3 @@ public class HtmlGenerator {
 
 
 }
-
