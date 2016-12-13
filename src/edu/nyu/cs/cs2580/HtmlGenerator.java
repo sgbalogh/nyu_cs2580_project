@@ -113,6 +113,9 @@ public class HtmlGenerator {
                 "          var components = params[i].split('=');\n" +
                 "          if (components[0].toLowerCase() == 'query') {\n" +
                 "            params[i] = \"query=\" + string;\n" +
+                "          } else if (components[0].toLowerCase() == 'best' || components[0].toLowerCase() == 'uname' || components[0].toLowerCase() == 'place') {\n" +
+                "            params.splice(i, 1);\n" +
+                "            i--;\n"+
                 "          }\n" +
                 "        }\n" +
                 "        return params.join(\"&\");\n" +
@@ -174,6 +177,9 @@ public class HtmlGenerator {
                 "          var components = params[i].split('=');\n" +
                 "          if (components[0].toLowerCase() == 'query') {\n" +
                 "            params[i] = \"query=\" + string;\n" +
+                "          } else if (components[0].toLowerCase() == 'best' || components[0].toLowerCase() == 'uname' || components[0].toLowerCase() == 'place') {\n" +
+                "            params.splice(i, 1);\n" +
+                "            i--;\n"+
                 "          }\n" +
                 "        }\n" +
                 "        return params.join(\"&\");\n" +
@@ -452,6 +458,10 @@ public class HtmlGenerator {
                 "            }\n" +
                 "        },\n" +
                 "        onEachFeature: function (feature, layer) {\n" +
+                "            var non_location_q = \"");
+        builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
+                builder.append("\";\n" +
+                "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id; // + \"&uname=\" + feature.properties.addl_terms;\n" +
                 "            layer.bindPopup(feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name);\n" +
                 "            layer.on('mouseover', function (e) {\n" +
                 "                this.openPopup();\n" +
@@ -460,7 +470,9 @@ public class HtmlGenerator {
                 "                this.closePopup();\n" +
                 "            });\n" +
                 "            layer.on('click', function (e) {\n" +
-                "                window.location.href = \"./search?hi there\"\n" +
+                "              if (feature.properties.type != 'primary') {\n" +
+                "                window.location.href = \"./search?\" + request_url;\n" +
+                "              }\n" +
                 "            })\n" +
                 "        }\n" +
                 "    }).addTo(map);\n" +
