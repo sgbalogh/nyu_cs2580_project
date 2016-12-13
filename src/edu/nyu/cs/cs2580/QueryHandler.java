@@ -122,10 +122,12 @@ class QueryHandler implements HttpHandler {
   // care of thread-safety.
   private Indexer _indexer;
   private LocationParser _location_parser;
+  private SpatialEntityKnowledgeBase _gkb;
 
   public QueryHandler(Options options, Indexer indexer, SpatialEntityKnowledgeBase gkb) {
     _indexer = indexer;
     _location_parser = new LocationParser(indexer, gkb);
+    _gkb = gkb;
     // Create LocationParser here, feed it a knowledge base reference
     // GKB created (loaded from disk) in SearchEngine
   }
@@ -198,9 +200,9 @@ class QueryHandler implements HttpHandler {
     response.append(response.length() > 0 ? "\n" : "");
   }
 
-  public void constructHtmlOutput(final Vector<ScoredDocument> docs, StringBuffer response, QueryBoolGeo processed) {
+  public void constructHtmlOutput(final Vector<ScoredDocument> docs, StringBuffer response, QueryBoolGeo processed, SpatialEntityKnowledgeBase gkb) {
 
-    HtmlGenerator htmlDocument = new HtmlGenerator(docs, processed);
+    HtmlGenerator htmlDocument = new HtmlGenerator(docs, processed, gkb);
 
     response.append(htmlDocument.toString());
 
@@ -275,7 +277,7 @@ class QueryHandler implements HttpHandler {
             respondWithMsg(exchange, response.toString());
             break;
           case HTML:
-            constructHtmlOutput(scoredDocs, response, processedQuery);
+            constructHtmlOutput(scoredDocs, response, processedQuery, _gkb);
             respondWithHtml(exchange, response.toString());
             break;
           case TSV:

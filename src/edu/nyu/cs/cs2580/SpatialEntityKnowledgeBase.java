@@ -1,6 +1,8 @@
 package edu.nyu.cs.cs2580;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -11,15 +13,116 @@ public class SpatialEntityKnowledgeBase implements Serializable {
     private HashMap<String, GeoEntity> _us_county_map; // County code to corresponding GeoEntity, e.g. "US.GA.005" -> GeoEntity
     private HashMap<String, GeoEntity> _us_state_map; // State abbr. to corresponding GeoEntity, e.g. "NY" -> GeoEntity
     private HashMap<String, List<GeoEntity>> _term_search_map; // Given a term (e.g. "springfield"), find candidate GeoEntities
+    private HashMap<String, String> _state_to_fips;
 
     public SpatialEntityKnowledgeBase() {
         this._entity_map = new HashMap<>();
         this._us_county_map = new HashMap<>();
         this._us_state_map = new HashMap<>();
         this._term_search_map = new HashMap<>();
+        this._state_to_fips = new HashMap<>();
+    }
+
+    public void addStateWithFIPS(String state, String fips) {
+        this._state_to_fips.put(state, fips);
     }
 
     public static String makeGeoJSON(List<GeoEntity> entities) {
+        // NOTE: We assume first GeoEntity in the list is the "primary" one (which was searched by user)
+        if (entities.size() > 0) {
+            StringBuilder json = new StringBuilder();
+            json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+            GeoEntity primary = entities.get(0);
+            json.append("{ \"type\": \"Feature\", \"id\": \"")
+                    .append(primary.getId())
+                    .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                    .append(primary.longitude).append(", ").append(primary.latitude).append("]}")
+                    .append(", \"properties\": { \"name\": \"").append(primary.getName())
+                    .append("\", \"type\": \"primary\", \"population\": ").append(primary.population).append("}}");
+
+            for (int i = 1; i < entities.size(); i++) {
+                GeoEntity nearby = entities.get(i);
+                json.append(",{ \"type\": \"Feature\", \"id\": \"")
+                        .append(nearby.getId())
+                        .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                        .append(nearby.longitude).append(", ").append(nearby.latitude).append("]}")
+                        .append(", \"properties\": { \"name\": \"").append(nearby.getName())
+                        .append("\", \"type\": \"expanded\", \"population\": ").append(nearby.population).append("}}");
+            }
+            json.append("]}");
+            return json.toString();
+        }
+        return null;
+    }
+
+    public static String makeGeoJSON2(List<GeoEntity> candidates) {
+        // getUniqueName();
+
+        if (candidates.size() > 0) {
+            GeoEntity county = null;
+            GeoEntity state = null;
+            StringBuilder json = new StringBuilder();
+            json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+
+
+            for (int i = 1; i < candidates.size(); i++) {
+                GeoEntity entity = candidates.get(i);
+                if (entity.type == "COUNTY") {
+                    county = entity;
+                } else if (entity.type == "STATE") {
+                    state = entity;
+                } else {
+                    if (i != 0) {
+                        json.append(",");
+                    }
+                    json.append("{ \"type\": \"Feature\", \"id\": \"")
+                            .append(entity.getId())
+                            .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                            .append(entity.longitude).append(", ").append(entity.latitude).append("]}")
+                            .append(", \"properties\": { \"name\": \"").append(entity.getName()).append("\", \"state\": \"")
+                            .append(entity.getStateName())
+                            .append("\", \"type\": \"candidate\", \"addl_terms\": \"")
+                            .append(entity.getUniqueName())
+                            .append("\", \"population\": ").append(entity.population).append("}}");
+                }
+            }
+
+
+            json.append("]}");
+            return json.toString();
+        }
+        return "";
+    }
+
+    public static String makeGeoJSONCounty(List<GeoEntity> entities) {
+        // NOTE: We assume first GeoEntity in the list is the "primary" one (which was searched by user)
+        if (entities.size() > 0) {
+            StringBuilder json = new StringBuilder();
+            json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+            GeoEntity primary = entities.get(0);
+            json.append("{ \"type\": \"Feature\", \"id\": \"")
+                    .append(primary.getId())
+                    .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                    .append(primary.longitude).append(", ").append(primary.latitude).append("]}")
+                    .append(", \"properties\": { \"name\": \"").append(primary.getName())
+                    .append("\", \"type\": \"primary\", \"population\": ").append(primary.population).append("}}");
+
+            for (int i = 1; i < entities.size(); i++) {
+                GeoEntity nearby = entities.get(i);
+                json.append(",{ \"type\": \"Feature\", \"id\": \"")
+                        .append(nearby.getId())
+                        .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                        .append(nearby.longitude).append(", ").append(nearby.latitude).append("]}")
+                        .append(", \"properties\": { \"name\": \"").append(nearby.getName())
+                        .append("\", \"type\": \"expanded\", \"population\": ").append(nearby.population).append("}}");
+            }
+            json.append("]}");
+            return json.toString();
+        }
+        return null;
+    }
+
+    public static String makeGeoJSONState(List<GeoEntity> entities) {
         // NOTE: We assume first GeoEntity in the list is the "primary" one (which was searched by user)
         if (entities.size() > 0) {
             StringBuilder json = new StringBuilder();
@@ -197,24 +300,141 @@ public class SpatialEntityKnowledgeBase implements Serializable {
 
     public static String makeDisambiguateGeoJSON(List<GeoEntity> candidates) {
         // getUniqueName();
+
         if (candidates.size() > 0) {
+            GeoEntity county = null;
+            GeoEntity state = null;
+            boolean appended_before = false;
             StringBuilder json = new StringBuilder();
             json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
             for (int i = 0; i < candidates.size(); i++) {
                 GeoEntity entity = candidates.get(i);
-                if (i != 0) {
-                    json.append(",");
+                if (entity.type == "COUNTY") {
+                    county = entity;
+                } else if (entity.type == "STATE") {
+                    state = entity;
+                } else {
+                    if (appended_before) {
+                        json.append(",");
+                    }
+                    json.append("{ \"type\": \"Feature\", \"id\": \"")
+                            .append(entity.getId())
+                            .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
+                            .append(entity.longitude).append(", ").append(entity.latitude).append("]}")
+                            .append(", \"properties\": { \"name\": \"").append(entity.getName()).append("\", \"state\": \"")
+                            .append(entity.getStateName())
+                            .append("\", \"type\": \"candidate\", \"addl_terms\": \"")
+                            .append(entity.getUniqueName())
+                            .append("\", \"population\": ").append(entity.population).append("}}");
+                    appended_before = true;
                 }
-                json.append("{ \"type\": \"Feature\", \"id\": \"")
-                        .append(entity.getId())
-                        .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
-                        .append(entity.longitude).append(", ").append(entity.latitude).append("]}")
-                        .append(", \"properties\": { \"name\": \"").append(entity.getName()).append("\", \"state\": \"")
-                        .append(entity.getStateName())
-                        .append("\", \"type\": \"candidate\", \"addl_terms\": \"")
-                        .append(entity.getUniqueName())
-                        .append("\", \"population\": ").append(entity.population).append("}}");
             }
+
+
+            json.append("]}");
+            return json.toString();
+        }
+        return "";
+    }
+
+    public static String makeDisambiguateGeoJSONCounty(List<GeoEntity> candidates, SpatialEntityKnowledgeBase gkb) {
+        // getUniqueName();
+        if (candidates.size() > 0) {
+            GeoEntity county = null;
+            boolean appended_before = false;
+            StringBuilder json = new StringBuilder();
+            json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+            for (int i = 0; i < candidates.size(); i++) {
+                GeoEntity entity = candidates.get(i);
+                if (entity.type == "COUNTY") {
+                    county = entity;
+
+                    //US.WI.029
+                    String toSearch = county.admin2Code.replaceAll("US.", "");
+                    String[] split = toSearch.split("[.]");
+                    String state = split[0];
+                    String countyCode = split[1];
+                    String state_fips = gkb._state_to_fips.get(state);
+                    String filename = state_fips + "_" + countyCode + ".geojson";
+                    String geom = null;
+                    try {
+                        geom = new String(Files.readAllBytes(Paths.get("data/geospatial/counties_geojson/" + filename)));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    if (geom != null) {
+
+                        if (appended_before) {
+                            json.append(",");
+                        }
+
+                        json.append("{ \"type\": \"Feature\", \"id\": \"")
+                                .append(entity.getId())
+                                .append("\", \"geometry\": ")
+                                .append(geom)
+                                .append(", \"properties\": { \"name\": \"").append(entity.getName()).append("\", \"state\": \"")
+                                .append(entity.getStateName())
+                                .append("\", \"type\": \"candidate\", \"addl_terms\": \"")
+                                .append(entity.getUniqueName())
+                                .append("\", \"population\": ").append(entity.population).append("}}");
+                        appended_before = true;
+                    }
+
+                }
+            }
+
+            json.append("]}");
+            return json.toString();
+        }
+        return "";
+    }
+
+    public static String makeDisambiguateGeoJSONState(List<GeoEntity> candidates, SpatialEntityKnowledgeBase gkb) {
+        // getUniqueName();
+        if (candidates.size() > 0) {
+            GeoEntity county = null;
+            boolean appended_before = false;
+            StringBuilder json = new StringBuilder();
+            json.append("{ \"type\": \"FeatureCollection\", \"features\": [");
+            for (int i = 0; i < candidates.size(); i++) {
+                GeoEntity entity = candidates.get(i);
+                if (entity.type == "STATE") {
+                    county = entity;
+
+                    //US.WI.029
+                    String toSearch = county.admin1Code.replaceAll("US.", "");
+                    String state_fips = gkb._state_to_fips.get(toSearch);
+                    String filename = state_fips + ".geojson";
+                    String geom = null;
+                    try {
+                        geom = new String(Files.readAllBytes(Paths.get("data/geospatial/states_geojson/" + filename)));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    if (geom != null) {
+
+                        if (appended_before) {
+                            json.append(",");
+                        }
+
+                        json.append("{ \"type\": \"Feature\", \"id\": \"")
+                                .append(entity.getId())
+                                .append("\", \"geometry\": ")
+                                .append(geom)
+                                .append(", \"properties\": { \"name\": \"").append(entity.getName()).append("\", \"state\": \"")
+                                .append(entity.getStateName())
+                                .append("\", \"type\": \"candidate\", \"addl_terms\": \"")
+                                .append(entity.getUniqueName())
+                                .append("\", \"population\": ").append(entity.population).append("}}");
+                        appended_before = true;
+                    }
+
+                }
+
+            }
+
             json.append("]}");
             return json.toString();
         }

@@ -21,6 +21,7 @@ public class LocationLoader {
         String csvFileCounties = "data/geospatial/admin2_data.csv";
         String csvFileStates = "data/geospatial/admin1_data.csv";
         String csvFileRelations = "data/geospatial/nearest_neighbors_50km.csv";
+        String csvFipsCodes = "data/geospatial/state_fips_codes.csv";
 
         String line = "";
         String csvSplitter = ",";
@@ -104,14 +105,35 @@ public class LocationLoader {
                     String code = parsedLine[0];
                     if (code.contains("US.")) {
                         String name = parsedLine[2];
+                        Double x = Double.parseDouble(parsedLine[4]);
+                        Double y = Double.parseDouble(parsedLine[5]);
                         Integer id = Integer.parseInt(parsedLine[3]);
                         GeoEntity toAdd = new GeoEntity(id, name, "STATE");
                         toAdd.admin1Code = code;
+                        toAdd.easting = x;
+                        toAdd.northing = y;
 
                         knowledgeBase.addEntityToMap(toAdd);
                         //System.out.println("Successfully added state line " + line_num);
                     }
                 }
+            }
+
+        } catch (IOException e) {
+        }
+
+        System.out.println("Populating FIPS table...");
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFipsCodes))) {
+            Integer line_num = 0;
+            while ((line = br.readLine()) != null) {
+                line_num++;
+                String[] parsedLine = line.split(csvSplitter);
+                String state_abbr = parsedLine[0];
+                String state_fips = parsedLine[1];
+
+                knowledgeBase.addStateWithFIPS(state_abbr, state_fips);
+                //System.out.println("Successfully added state line " + line_num);
+
             }
 
         } catch (IOException e) {
