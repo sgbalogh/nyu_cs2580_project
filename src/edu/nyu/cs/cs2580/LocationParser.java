@@ -319,7 +319,7 @@ public class LocationParser {
 		while(s.contains("\"")){
 			p = s.indexOf("\"");
 			q = s.indexOf("\"",s.indexOf("\"") + 1);
-			listOfCandidateLocation.put(s.substring(p+1,q),-1);
+			listOfCandidateLocation.put((s.substring(p+1,q)).trim(),-1);
 			String[] tokens2 = s.substring(p+1,q).split("\\s+");
 			for(int i=0; i<tokens2.length; i++){
 				toReturn._tokens.add(tokens2[i]);
@@ -329,6 +329,7 @@ public class LocationParser {
 			System.out.println("removing quotations: "+s.substring(p,q+1));
 			s=s.replace(s.substring(p,q+1),"");
 			System.out.println("updated s: "+s);
+
 		}
 		System.out.println("updated s: "+s);
 
