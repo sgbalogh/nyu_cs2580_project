@@ -5,7 +5,6 @@ import java.io.FileWriter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -14,7 +13,7 @@ import java.util.Vector;
 /**
  * Created by stephen on 12/3/16.
  */
-//Algorithm: QL and PageRank data (modeled on previous Comprehensive)
+//Algorithm: TF-IDF - Lucene data (modeled on previous Comprehensive)
 // THIS RANKER IS RESPONSIBLE FOR CHOOSING THE CANDIDATE TO EXPAND ON
 // ... AND WHETHER OR NOT TO EXPAND GIVEN CONDITIONS
 // 1) not enough results
@@ -76,16 +75,16 @@ public class RankerGeoComprehensive extends Ranker {
     public double _orig_threshold = 2.0; //Determines if original score is strong enough not to do expansion
     public double _expanded_threshold = 1.0; //Significant expansion term score threshold
 
-    public int _max_expansion = 3; //Max number of Expansion Terms
+    public int _max_expansion = 50; //Max number of Expansion Terms
 
     //Cache: ~5 expanded terms in cache
     //TODO: Manage Cache memory
-    public HashMap<String, ScoredSumTuple> _cache;
+    //public HashMap<String, ScoredSumTuple> _cache;
 
     public RankerGeoComprehensive(SearchEngine.Options options,
                                   QueryHandler.CgiArguments arguments, Indexer indexer) {
         super(options, arguments, indexer);
-        _cache = new HashMap<>();
+        //_cache = new HashMap<>();
         System.out.println("Using Ranker: " + this.getClass().getSimpleName());
     }
 
@@ -104,11 +103,9 @@ public class RankerGeoComprehensive extends Ranker {
             if(init_query._tokens.size() == 0) //Flat out empty String
                 return new Vector<ScoredDocument>();
 
-            if(query.cache) { //Return cached value
-                return returnCachedList(query._query, numResults, query.best);
+            if(query.best) { //Return cached value
+                return returnBestList(query, numResults);
             }
-
-            System.out.println(query._tokens.toString());
 
             ScoredSumTuple origBenchmark = runQuery(query, numResults);
 
@@ -154,15 +151,6 @@ public class RankerGeoComprehensive extends Ranker {
                     //Should I again have a threshold?
                     if(newResults.total_score / newResults.queryNorm >= 0) {
                         scores.put(ge.getUniqueName() , newResults.total_score / newResults.queryNorm );
-                        //TODO: cache
-                        //_cache.put(query._query.replace(key, "") + " " + ge.getName(), newResults);
-
-                        //TODO; Populate URLs
-                        //http://localhost:25805/search?query=%22central%20park%22%20hoboken&ranker=geocomprehensive
-                        //String url = "query=" + query._query + "&place=" + ge.getId() + "&ranker=geocomprehensive";
-
-                        //query._ambiguous_URLs.put(ge.getId() , url);
-
                     } else { //Remove if not qualified
                         geIter.remove();
                     }
@@ -203,6 +191,8 @@ public class RankerGeoComprehensive extends Ranker {
 
                     query._tokens = new Vector<>(query.getSupportingTokens());
 
+                    HashMap<String, Double> scores = new HashMap<>();
+
                     Iterator<GeoEntity> expQueryIterator = ((QueryBoolGeo) init_query).get_expanded_geo_entities().iterator();
 
                     //Iterator through all nearby cities of each
@@ -233,12 +223,14 @@ public class RankerGeoComprehensive extends Ranker {
 
                         if( normalizedScore > _expanded_threshold
                                 &&
-                                normalizedScore > origBenchmark.total_score / origBenchmark.queryNorm) {
+                                normalizedScore > 0.75 * origBenchmark.total_score / origBenchmark.queryNorm) {
 
                             ((QueryBoolGeo) init_query)._presentation_mode = GEO_MODE.EXPANSION;
 
+                            scores.put(cityName, normalizedScore);
+
                             //cache
-                            _cache.put(expandedQuery._query, newResults);
+                            //_cache.put(expandedQuery._query, newResults);
 
                             logs.append(": Qualified!\n");
                             System.out.println(expandedQuery._query + ": qualified with " + normalizedScore);
@@ -251,7 +243,14 @@ public class RankerGeoComprehensive extends Ranker {
                         }
                     }
 
-                    //Sort Candidates
+                    //Sort candidates by their scores
+                    /*query.get_expanded_geo_entities().sort( new Comparator<GeoEntity>() {
+                        @Override
+                        public int compare(GeoEntity o1, GeoEntity o2) {
+                            return Double.compare(scores.get(o2.getName().toLowerCase().trim()),
+                                    scores.get(o1.getName().toLowerCase().trim()));
+                        }
+                    });*/
 
                     //Log Expansion queries
                     if(query._presentation_mode.equals(GEO_MODE.EXPANSION)) {
@@ -290,46 +289,69 @@ public class RankerGeoComprehensive extends Ranker {
         return null;
     }
 
-    //Return Vector of Scored docs from cache
-    public Vector<ScoredDocument> returnCachedList(String input, int numResults, boolean best) {
-        //Merge all cache results
-        if(best) {
-            Vector<ScoredDocument> newResults = new Vector<ScoredDocument>();
+    //Return Vector of Scored docs out of best of each candidate
+    public Vector<ScoredDocument> returnBestList(QueryBoolGeo query, int numResults) {
+        try {
+            query._tokens = new Vector<>(query.getSupportingTokens());
 
-            //Priority Queue of Iterators
-            PriorityQueue<PeekingIterator> mergeBuffer = new PriorityQueue<>( _cache.size(),
-                    new Comparator<PeekingIterator>() {
-                        @Override
-                        public int compare(PeekingIterator o1, PeekingIterator o2) {
-                            return Double.compare( o2.doc.getScore() / o2.queryNorm ,
-                                    o1.doc.getScore() / o1.queryNorm );
+            HashMap<Integer, ScoredDocument> uniqDocs = new HashMap<>();
+
+            Iterator<GeoEntity> expQueryIterator = query.get_expanded_geo_entities().iterator();
+
+            //Iterator through all nearby cities of each
+            while(expQueryIterator.hasNext()) {
+
+                //Create new query:
+                String cityName = expQueryIterator.next().getName().toLowerCase().trim();
+
+                QueryBoolGeo expandedQuery = new QueryBoolGeo(query._query); //Dummy query
+                Vector<String> _new_terms = new Vector<>(query.getSupportingTokens()); //Add non location terms
+
+                //Remove older CityName
+                _new_terms.add(cityName);
+
+                expandedQuery._tokens = _new_terms;
+
+                System.out.println("Expanded Query: " + expandedQuery._tokens.toString());
+
+                ScoredSumTuple newResults = runQuery(expandedQuery , numResults);
+
+                //Store to List is not a duplicate or higher
+                for( ScoredDocument doc : newResults.scored ) {
+                    if(uniqDocs.containsKey(doc.getDocID())) {
+                        if(uniqDocs.get(doc.getDocID()).getScore() < doc.getScore()) {
+                            uniqDocs.put(doc.getDocID(), doc);
                         }
-                    });
-
-            //Initial Insert
-            for(ScoredSumTuple docs :_cache.values()) {
-                if(docs.scored.size() > 0)
-                    mergeBuffer.add(new PeekingIterator(docs.scored, docs.queryNorm));
-            }
-
-            while(newResults.size() >= numResults ) {
-
-                PeekingIterator nextElem = mergeBuffer.poll();
-                newResults.add(nextElem.doc);
-
-                if(nextElem.pop()) {
-                    mergeBuffer.add(nextElem);
+                    } else {
+                        uniqDocs.put(doc.getDocID(), doc);
+                    }
                 }
-
-                //Out of Expanded Documents
-                if(mergeBuffer.size() <= 0)
-                    break;
             }
 
-            return newResults;
-        }
+            //Get Top Highest Scores
+            PriorityQueue<ScoredDocument> bestDocs = new PriorityQueue<>();
+            for(ScoredDocument doc : uniqDocs.values()) {
+                bestDocs.add(doc);
+                if(bestDocs.size() > numResults) {
+                    bestDocs.poll();
+                }
+            }
 
-        return _cache.get(input).scored;
+            //Sort Results
+            Vector<ScoredDocument> scoredDocs = new Vector<>(bestDocs);
+            scoredDocs.sort(new Comparator<ScoredDocument>() {
+                @Override
+                public int compare(ScoredDocument o1, ScoredDocument o2) {
+                    return Double.compare(o2.getScore(),o1.getScore());
+                }
+            });
+
+            return scoredDocs;
+
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     //Score All Docs
@@ -344,7 +366,7 @@ public class RankerGeoComprehensive extends Ranker {
 
             //Get Document Indexed
             while ((doc = (DocumentIndexed) _indexer.nextDoc(query, docid)) != null) {
-                double score = scoreDocumentQL(query, doc);
+                double score = scoreDocumentTFIDF(query, doc);
                 rankQueue.add(new ScoredDocument(doc, score));
                 //System.out.println(doc.getTitle() + " " + score);
 
@@ -386,7 +408,7 @@ public class RankerGeoComprehensive extends Ranker {
      * Documents which mention the search terms many times are good
      */
 
-    public Double scoreDocumentQL(QueryBoolGeo query, DocumentIndexed doc) {
+    public Double scoreDocumentTFIDF(QueryBoolGeo query, DocumentIndexed doc) {
         Double score = 0.0;
 
         try {
@@ -394,12 +416,19 @@ public class RankerGeoComprehensive extends Ranker {
             //Normal Tokens
             for(String term : query._tokens) {
                 int docTermFreq = _indexer.documentTermFrequency(term, doc._docid);
+                score = Math.sqrt(docTermFreq) * ((Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1);
+
                 //System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
-                score += docTermFreq * //Term Frequency
+                //score += Math.pow(_indexer.corpusDocFrequencyByTerm(term), 2) / (doc._numWords + query._tokens.size());
+
+                double overlap = (docTermFreq + 0.0) / doc._numWords;
+                //System.out.println(overlap);
+
+                 /*score += Math.sqrt(docTermFreq) * //Term Frequency
                         Math.pow(
-                                (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1
-                                ,2) * //IDF
-                        (1 / Math.sqrt(query._tokens.size())); //lengthNorm
+                                (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1.0
+                                ,2.0) * //IDF
+                        (1.0 / Math.sqrt(query._tokens.size(s))) * overlap; //Overlap; //lengthNorm*/
 
                 //Better Than QL: guatemala
             	 /* score += Math.log(
@@ -409,13 +438,10 @@ public class RankerGeoComprehensive extends Ranker {
                                 //Smoothing
                                 (0.2 * _indexer.corpusTermFrequency(term) / _indexer._totalTermFrequency )
                 	);*/
-
-                //Overlap
-                foundTerms += (docTermFreq > 0? 1:0);
             }
 
-            score = score * (1 + doc.getPageRank()) * //multiply by pagerank + 1
-                    (foundTerms / query._tokens.size()); //coord
+            score = score * (1 + doc.getPageRank()); //multiply by pagerank + 1
+                    //(foundTerms / query._tokens.size()); //coord
 
         } catch(Exception e) {
             e.printStackTrace();

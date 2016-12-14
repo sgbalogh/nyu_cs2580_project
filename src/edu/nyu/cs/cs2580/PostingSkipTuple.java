@@ -1,3 +1,4 @@
+
 package edu.nyu.cs.cs2580;
 
 import java.io.Serializable;
@@ -15,3 +16,4 @@ public class PostingSkipTuple implements Serializable {
 		this.skipList = skipList.toArray(new Integer[skipList.size()]);
 	}
 }
+

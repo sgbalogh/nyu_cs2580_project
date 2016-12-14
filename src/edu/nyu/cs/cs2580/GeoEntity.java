@@ -1,10 +1,7 @@
 package edu.nyu.cs.cs2580;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by stephen on 12/2/16.
@@ -15,7 +12,7 @@ public class GeoEntity implements Serializable {
     private Integer id;
 
     private String primaryName;
-    
+
     //========================
     //Unique Name
     //=======================
@@ -92,13 +89,66 @@ public class GeoEntity implements Serializable {
             for (int i = 0; i < stop_int; i++) {
                 toReturn.add(this.nearby.get(i));
             }
-            return toReturn;
+            //return toReturn;
         }
         if (this.type == "CITY" && this.getCounty() != null) {
             toReturn.add(this.getCounty());
         }
         if ((this.type == "CITY" || this.type == "COUNTY") && this.getState() != null) {
-            toReturn.add(this.getState());
+            // toReturn.add(this.getState());
+        }
+        if ((this.type == "STATE")) {
+            ArrayList<GeoEntity> all_cities = new ArrayList<>();
+            ArrayList<GeoEntity> all_actual_cities = new ArrayList<>();
+            List<GeoEntity> state_child = this.children;
+            HashMap<String, Integer> _county_populations = new HashMap<>();
+            for (GeoEntity child : state_child) {
+                int county_pop = 0;
+                for (GeoEntity city : child.children) {
+                    county_pop += city.population;
+                    all_actual_cities.add(city);
+                }
+                _county_populations.put(child.getName(), county_pop);
+                all_cities.add(child);
+            }
+
+            all_cities.sort(new Comparator<GeoEntity>() {
+                @Override
+                public int compare(GeoEntity o1, GeoEntity o2) {
+                    return Integer.compare(_county_populations.get(o2.getName()), _county_populations.get(o1.getName()));
+                }
+            });
+            int stop_int = (maxcities > all_cities.size() ? all_cities.size() : maxcities);
+            for (int i = 0; i < stop_int; i++) {
+                toReturn.add(all_cities.get(i));
+            }
+
+            all_actual_cities.sort(new Comparator<GeoEntity>() {
+                @Override
+                public int compare(GeoEntity o1, GeoEntity o2) {
+                    return Integer.compare(o2.population, o1.population);
+                }
+            });
+            stop_int = (maxcities > all_actual_cities.size() ? all_actual_cities.size() : maxcities);
+            for (int i = 0; i < stop_int; i++) {
+                toReturn.add(all_actual_cities.get(i));
+            }
+
+            return toReturn;
+        }
+        if ((this.type == "COUNTY")) {
+            ArrayList<GeoEntity> all_cities = new ArrayList<>();
+            all_cities.addAll(this.children);
+            all_cities.sort(new Comparator<GeoEntity>() {
+                @Override
+                public int compare(GeoEntity o1, GeoEntity o2) {
+                    return Integer.compare(o2.population, o1.population);
+                }
+            });
+            int stop_int = (maxcities > all_cities.size() ? all_cities.size() : maxcities);
+            for (int i = 0; i < stop_int; i++) {
+                toReturn.add(all_cities.get(i));
+            }
         }
         return toReturn;
     }
@@ -201,14 +251,14 @@ public class GeoEntity implements Serializable {
     }
 
 
-	public String getUniqueName() {
-		return uniqueName;
-	}
+    public String getUniqueName() {
+        return uniqueName;
+    }
 
 
-	public void setUniqueName(String uniqueName) {
-		this.uniqueName = uniqueName;
-	}
+    public void setUniqueName(String uniqueName) {
+        this.uniqueName = uniqueName;
+    }
 
 
 }
