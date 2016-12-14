@@ -13,7 +13,7 @@ public class LocationParser {
 
 	//Statistic Segmentation Model
 	private static Map<String,Integer> listOfCandidateLocation = new HashMap<>();
-	private QueryBoolGeo toReturn;
+	private static QueryBoolGeo toReturn;
 
 	public LocationParser(Indexer indexer, SpatialEntityKnowledgeBase gkb) {
 		_indexer = indexer;
@@ -29,10 +29,14 @@ public class LocationParser {
 		toReturn = new QueryBoolGeo(givenQuery);
 		//System.out.println(givenQuery);
 		List<String> tokens = removeStopWords(givenQuery);
-		toReturn._tokens = new Vector<String>(tokens);
-		/*for(int i=0; i<tokens.size(); i++) {
-			System.out.println("tokens: " + tokens.get(i));
-		}*/
+		if(tokens.size()==0){
+			//do nothing
+			System.out.println("in if");
+		}
+		else {
+			//toReturn._tokens = new Vector<String>(tokens);
+			System.out.println("in else");
+
 
 
 		//String[] tokens = givenQuery.split("\\s+");
@@ -170,7 +174,7 @@ public class LocationParser {
 			System.out.println("string: "+ entry.getKey()+" pendingId: "+entry.getValue());
 		}*/
 
-
+		}
 		if(geoID>=0){
 			List<GeoEntity> location_terms = new ArrayList<>();
 			List<String> non_location_terms = new ArrayList<>();
@@ -334,7 +338,13 @@ public class LocationParser {
 
 		toReturn.setSupportingTokens(non_location_terms);
 		toReturn.populateGeoEntities(location_terms);
-
+		
+		
+		for(Map.Entry<String, Integer> entry:  listOfCandidateLocation.entrySet()){
+			toReturn._tokens.add(entry.getKey());
+		}
+		
+		
 		//location_terms_string.clear();
 		//non_location_terms.clear();
 		listOfCandidateLocation.clear();
@@ -357,58 +367,67 @@ public class LocationParser {
 		while(s.contains("\"")){
 			p = s.indexOf("\"");
 			q = s.indexOf("\"",s.indexOf("\"") + 1);
-			listOfCandidateLocation.put(s.substring(p+1,q),-1);
+			listOfCandidateLocation.put((s.substring(p+1,q)).trim(),-1);
+			String[] tokens2 = s.substring(p+1,q).split("\\s+");
+
+
 			System.out.println("removing quotations: "+s.substring(p,q+1));
 			s=s.replace(s.substring(p,q+1),"");
 			System.out.println("updated s: "+s);
+
 		}
 		System.out.println("updated s: "+s);
 
 
-
-
-		String[] given=s.split("\\s+");
 		List<String> toReturn = new ArrayList<>();
-		int l = given.length;
-		int[] indexToRemove = new int[l];
+		System.out.println("s:"+s);
+		System.out.println("l:"+s.length());
+		if(s.length()==0){
 
-		try {
-			BufferedReader br = new BufferedReader(new FileReader("english.stop.txt"));
-			//System.out.println("*****************************************************************");
-			String temp = br.readLine();
-			while(temp!=null){
-				//System.out.println(temp);
-				for(int i=0; i<l; i++){
-					if(given[i].equals(temp) && indexToRemove[i]==0){
-						//toReturn.add(given[i]);
-						indexToRemove[i] = 1;
+		}
+		else {
+			s=s.trim();
+			System.out.println("s trimmed: "+s.length());
+			String[] given = s.split("\\s+");
+			System.out.println("given len:"+given.length);
+			int l = given.length;
+			int[] indexToRemove = new int[l];
 
+			try {
+				BufferedReader br = new BufferedReader(new FileReader("english.stop.txt"));
+				System.out.println("*****************************************************************");
+				String temp = br.readLine();
+				while (temp != null) {
+					//System.out.println(temp);
+					for (int i = 0; i < l; i++) {
+						if (given[i].equals(temp) && indexToRemove[i] == 0) {
+							//toReturn.add(given[i]);
+							indexToRemove[i] = 1;
+
+						}
+					}
+					temp = br.readLine();
+
+				}
+
+				for (int i = 0; i < l; i++) {
+					if (indexToRemove[i] == 0) {
+						toReturn.add(given[i]);
+						System.out.println(given[i]);
 					}
 				}
-				temp = br.readLine();
 
+				System.out.println("*****************************************************************");
+
+
+			} catch (IOException e) {
+				System.out.println("IO exception found!");
 			}
 
-			for(int i=0; i<l; i++){
-				if(indexToRemove[i] == 0){
-					toReturn.add(given[i]);
-					//System.out.println(given[i]);
-				}
-			}
-
-			//System.out.println("*****************************************************************");
-
-
-
-
 		}
-		catch(IOException e){
-			System.out.println("IO exception found!");
-		}
-
-		System.out.println(toReturn.toString());
 		return toReturn;
 	}
+
 
 
 
