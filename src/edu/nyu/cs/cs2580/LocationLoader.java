@@ -18,9 +18,10 @@ public class LocationLoader {
         HashMap<Integer, LinkedList<Integer>> nearestNeighbors = new HashMap<>();
 
         String csvFileCities = "data/geospatial/cities1000_usa_3857.csv";
-        String csvFileCounties = "data/geospatial/admin2_data.csv";
+        String csvFileCounties = "data/geospatial/admin2_data_usa.csv";
         String csvFileStates = "data/geospatial/admin1_data.csv";
         String csvFileRelations = "data/geospatial/nearest_neighbors_50km.csv";
+        String csvFipsCodes = "data/geospatial/state_fips_codes.csv";
 
         String line = "";
         String csvSplitter = ",";
@@ -74,19 +75,23 @@ public class LocationLoader {
             while ((line = br.readLine()) != null) {
                 line_num++;
                 String[] parsedLine = line.split(csvSplitter);
-                if (line_num != 1) {
 
-                    String code = parsedLine[0];
-                    if (code.contains("US.")) {
-                        String name = parsedLine[2];
-                        Integer id = Integer.parseInt(parsedLine[3]);
-                        GeoEntity toAdd = new GeoEntity(id, name, "COUNTY");
-                        toAdd.admin2Code = code;
+                String code = parsedLine[0];
+                Double x = Double.parseDouble(parsedLine[4]);
+                Double y = Double.parseDouble(parsedLine[5]);
 
-                        knowledgeBase.addEntityToMap(toAdd);
-                        // System.out.println("Successfully added county line " + line_num);
-                    }
+                if (code.contains("US.")) {
+                    String name = parsedLine[2];
+                    Integer id = Integer.parseInt(parsedLine[3]);
+                    GeoEntity toAdd = new GeoEntity(id, name, "COUNTY");
+                    toAdd.admin2Code = code;
+                    toAdd.longitude = x;
+                    toAdd.latitude = y;
+
+                    knowledgeBase.addEntityToMap(toAdd);
+                    // System.out.println("Successfully added county line " + line_num);
                 }
+
             }
 
         } catch (IOException e) {
@@ -104,9 +109,13 @@ public class LocationLoader {
                     String code = parsedLine[0];
                     if (code.contains("US.")) {
                         String name = parsedLine[2];
+                        Double x = Double.parseDouble(parsedLine[4]);
+                        Double y = Double.parseDouble(parsedLine[5]);
                         Integer id = Integer.parseInt(parsedLine[3]);
                         GeoEntity toAdd = new GeoEntity(id, name, "STATE");
                         toAdd.admin1Code = code;
+                        toAdd.longitude = x;
+                        toAdd.latitude = y;
 
                         knowledgeBase.addEntityToMap(toAdd);
                         //System.out.println("Successfully added state line " + line_num);
@@ -116,6 +125,7 @@ public class LocationLoader {
 
         } catch (IOException e) {
         }
+
 
         GeoEntity nation = new GeoEntity(6252001, "United States of America", "NATION");
         knowledgeBase.addEntityToMap(nation);

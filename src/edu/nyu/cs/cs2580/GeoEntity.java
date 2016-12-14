@@ -92,13 +92,16 @@ public class GeoEntity implements Serializable {
             for (int i = 0; i < stop_int; i++) {
                 toReturn.add(this.nearby.get(i));
             }
-            return toReturn;
+            //return toReturn;
         }
         if (this.type == "CITY" && this.getCounty() != null) {
             toReturn.add(this.getCounty());
         }
         if ((this.type == "CITY" || this.type == "COUNTY") && this.getState() != null) {
             toReturn.add(this.getState());
+        }
+        if ((this.type == "STATE" || this.type == "COUNTY")) {
+            // return the most populous cities
         }
         return toReturn;
     }
