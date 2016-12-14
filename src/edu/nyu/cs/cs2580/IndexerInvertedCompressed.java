@@ -5,6 +5,7 @@ import java.util.*;
 import java.util.Map.Entry;
 
 import org.jsoup.Jsoup;
+import org.jsoup.select.Elements;
 
 import edu.nyu.cs.cs2580.SearchEngine.Options;
 
@@ -29,14 +30,20 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 	private int bufferSize = 4500000; //Flush buffer after size: Tune
 
 	//cache
-	private HashMap<Integer, int[]> _cache;
+	private HashMap<Integer, PostingSkipTuple> _posting_cache;
+	private HashMap<String, Integer> _doccount_cache;
+	private HashMap<String, Integer> _termcount_cache; //TODO
+
 	private int cacheSize = 1000000; //Number of terms in Cache
 
+	//Clear out a Folder
 	public static void clearIndex(File folder) {
-		File[] files = folder.listFiles();
-		if(files!=null) { //some JVMs return null for empty dirs
-			for(File f: files) {
-				f.delete();
+		if(folder.exists()) {
+			File[] files = folder.listFiles();
+			if(files!=null) { //some JVMs return null for empty dirs
+				for(File f: files) {
+					f.delete();
+				}
 			}
 		}
 	}
@@ -89,83 +96,91 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		}
 	}
 
-	public void listf(String directoryName, ArrayList<File> files) {
-		File directory = new File(directoryName);
-
-		// get all the files from a directory
-		File[] fList = directory.listFiles();
-		for (File file : fList) {
-			if (file.isFile()) {
-				files.add(file);
-			} else if (file.isDirectory()) {
-				listf(file.getAbsolutePath(), files);
+	//Get all files in a nested Data Structure
+	private List<File> nestedFiles(File corpusDirectory) {
+		List<File> files = new LinkedList<>();
+		for(File en : corpusDirectory.listFiles()) {
+			if(en.isDirectory()) {
+				files.addAll(nestedFiles(en));
+			} else if(en.isFile() && !en.isHidden() && !en.getName().startsWith(".")){
+				files.add(en);
 			}
 		}
+		return files;
 	}
 
 	@Override
 	public void constructIndex() throws Exception {
-		//Instantiate Docs
+		//=================================Instantiate Docs
+
 		_docs = new ArrayList<>();
 		_dictionary = new HashMap<>();
 		sortByIndex = new ArrayList<>();
 
 		_totalTermFrequency = 0L;
 
-		System.out.println("Loading pagerank scores...");
+		//===================================Create PageRank
 
-		CorpusAnalyzerPagerank pageranker = (CorpusAnalyzerPagerank) this._corpusAnalyzer;
-
-		@SuppressWarnings("unchecked")
+		//Page Rank
+		//System.out.println("Loading pagerank scores...");
+		//CorpusAnalyzerPagerank pageranker = (CorpusAnalyzerPagerank) this._corpusAnalyzer;
+		//@SuppressWarnings("unchecked")
 		//Vector<Double> _doc_pagerank = (Vector<Double>) pageranker.load();
 
-		//Create Index Directory
-		File indexDirectory = new File(_postings_list_dir);
-		if(indexDirectory .exists()) {
+		//==================================Create Posting List and skip Pointers Directory
+
+		File postingListDirectory = new File(_postings_list_dir);
+
+		if(postingListDirectory .exists()) {
 			//Delete all contents
-			clearIndex(indexDirectory);
-			System.out.println("Finished Clearing");
+			clearIndex(postingListDirectory);
+			System.out.println("Finished Cleaning Index Directory(s)");
 		} else {
-			indexDirectory.mkdirs();
+			postingListDirectory.mkdirs();
 		}
 
-		//Load StopWords
+		//====================================Load StopWords + Stemmer
+
 		HashSet<String> stopWords = new HashSet<>();
 		loadStopWords(stopWords, "english.stop.txt");
 
+		//Stemmer stemmer = new Stemmer();
+
+		//====================================Load Corpus Directory
+
 		File corpusDirectory = new File(_options._corpusPrefix);
-		System.out.println(_options._corpusPrefix);
+		System.out.println("Corpus Directory: " + _options._corpusPrefix);
 
 		if(!corpusDirectory.exists() || !corpusDirectory.isDirectory())
 			throw new IllegalStateException("Corpus Directory must exist!");
 
+
+		//======================================= Phase 1: Estimate Posting List Size
+
+		System.out.println("Estimation Phase");
+
 		TermInfo currTermInfo = null;
-		HashMap<String, Integer> docCount = null;
-		Stemmer stemmer = new Stemmer();
+		HashMap<String, Integer> wordCount = null;
 
 		//Estimation
 		long bufferEst = 0;
 
-		//Build Documents + get all unique words
-		//Estimate byte size
-		int docInCorpus = 0;
+		int progress = 0;
 
-		ArrayList<File> corpus_files = new ArrayList<>();
-		listf(_options._corpusPrefix, corpus_files);
-
-		System.out.println("Number of files: " + corpus_files.size());
-
-
-		for (File fileEntry : corpus_files) {
+		//Go through all Files in Corpus
+		for (File fileEntry : nestedFiles(corpusDirectory)) { //corpusDirectory.listFiles()) {
 			if (fileEntry.isFile()) {
-				String[] docWords = {};
-				System.out.println(docInCorpus);
-				System.out.println(fileEntry.getName());
-				try {
-					docWords = parseDocument(fileEntry);
-				} catch (Exception e) {
-					continue;
-				}
+				System.out.println("Estimated : " + progress);
+				progress++;
+
+				/*if(progress % 500 == 0) {
+					System.out.println("Encouraged Garbage Collection");
+					System.gc();
+				}*/
+
+				String[] docWords = parseDocument(fileEntry);
+
+				//Skip Corrupted Files
 				if(docWords.length <= 1)
 					continue;
 
@@ -176,62 +191,68 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				temp_totalTermFrequency += docWords.length;
 
 				//TODO: actually deal with pagerank
-				_docs.add(buildDocument(fileEntry, doc_id, docWords.length,
-						0, 0 ));
-				docInCorpus++;
+				_docs.add(buildDocument(fileEntry, doc_id, docWords.length, 0, 0 ));
 
-				docCount = new HashMap<>();
+				wordCount = new HashMap<>();
 
 				//Update map
 				int occurrence = 0;
 				for(String word: docWords) {
 					//Stopwords
-					//if(stopWords.contains(word)) {
-					//	continue;
-					//}
+					if(stopWords.contains(word)) {
+						continue;
+					}
 
 					//Stem
 					//stemmer.add(word.toCharArray(),word.length());
 					//stemmer.stem();
 					//word = stemmer.toString();
 
-					if(!_dictionary.containsKey(word)) {//unique word
+					if(!_dictionary.containsKey(word)) {
+						//unique word add to Dictionary
 						int temp_term_id = _dictionary.size();
 						_dictionary.put(word, new TermInfo(temp_term_id, doc_id));
 						sortByIndex.add(word);
-						_dictionary.get(word).estimate += vbyteEstimate(occurrence); //+ corpFreq
-					} else { //update term/doc count
+
+						_dictionary.get(word).estimatePosting += vbyteEstimate(occurrence); //+ corpFreq
+					} else {
+						//update term/doc count
 						currTermInfo = _dictionary.get(word);
 						currTermInfo.corpFreq++;
-						currTermInfo.estimate += vbyteEstimate(occurrence); //+ corpFreq
+						currTermInfo.estimatePosting += vbyteEstimate(occurrence); //+ corpFreq
 					}
+
 					//Every Occurrence
 					bufferEst += vbyteEstimate(occurrence); //+ corpFreq
 					occurrence++;
 
 					//Update Word Count
-					if(!docCount.containsKey(word)) {
-						docCount.put(word, 1);
+					if(!wordCount.containsKey(word)) {
+						wordCount.put(word, 1);
 					} else {
-						docCount.put(word, docCount.get(word) + 1);
+						wordCount.put(word, wordCount.get(word) + 1);
 					}
 				}
 
 				//Update all the counts
-				for(String word: docCount.keySet()) {
+				for(String word: wordCount.keySet()) {
 					currTermInfo = _dictionary.get(word);
 					currTermInfo.docFreq++;
-					bufferEst += vbyteEstimate(docCount.get(word));
-					currTermInfo.estimate += (vbyteEstimate(doc_id) + vbyteEstimate(docCount.get(word))); //docid + count
+					bufferEst += vbyteEstimate(wordCount.get(word));
+					currTermInfo.estimatePosting += (vbyteEstimate(doc_id) + vbyteEstimate(wordCount.get(word))); //docid + count
 				}
 			}
 		}
 
-		//Sort Ids by size
+		//======================================================== Phase 2: Build Files and Shard + Get Boundaries for Both Lists
+
+		System.out.println("Sorting Phase");
+
+		//Sort Ids by size: So it is as even as possible
 		Collections.sort(sortByIndex, new Comparator<String>() {
 			@Override
 			public int compare(String o1, String o2) {
-				return (int) (_dictionary.get(o2).estimate - _dictionary.get(o1).estimate);
+				return (int) (_dictionary.get(o2).estimatePosting - _dictionary.get(o1).estimatePosting);
 			}
 		});
 
@@ -240,13 +261,16 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		RandomAccessFile raIndFile = null;
 		TermInfo updateTerm;
 		int shardFile = 0;
-		bufferEst = bufferEst / shards;
+
+		bufferEst = bufferEst / shards; //General Byte Size of each shard
 		String newIndexFile;
 
 		_numDocs = _docs.size();
 
-		System.out.println(bufferEst + " " + _docs.size());
+		System.out.println("Number of Docs: " + _docs.size());
+		System.out.println("Number of Unique Words: " + sortByIndex.size());
 
+		//Go Through all Words
 		for(int index = 0; index < sortByIndex.size(); index++) {
 			updateTerm = _dictionary.get(sortByIndex.get(index));
 
@@ -254,11 +278,15 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 
 			//Update Ids, threshold, and estimates/lastbyte
 			updateTerm.id = index;
-			long termEst = updateTerm.estimate;
+			long termEst = updateTerm.estimatePosting;
 
-			//Dynamic Sharding
-			//If runningSum is above threshold, create new index file
+			//========================
+			//    Dynamic Sharding
+			//========================
 			if(Math.abs(bufferEst - runningSum) < Math.abs(bufferEst - runningSum - termEst)) {
+				//If runningSum is above threshold, create new index file
+
+				//This code builds previous index_file
 				newIndexFile = _postings_list_dir + Integer.toString(shardFile);
 				new File(newIndexFile).createNewFile();
 				raIndFile = new RandomAccessFile( newIndexFile , "rw");
@@ -266,17 +294,13 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				raIndFile.close();
 
 				shardFile++;
-  			  /*if(shardFile >= shards) {
-  				  System.out.println("Dynamic Sharding not working");
-  				  return;
-  			  }*/
 
 				runningSum = 0;
 			}
 
-			updateTerm.lastbyte = runningSum;
-			if(updateTerm.start < 0) { //not set
-				updateTerm.start = runningSum;
+			updateTerm.lastbytePosting = runningSum;
+			if(updateTerm.startPosting < 0) { //not set
+				updateTerm.startPosting = runningSum;
 			}
 
 			updateTerm.file = shardFile;
@@ -288,6 +312,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		raIndFile = null;
 		updateTerm = null;
 
+		//============================================ Phase 3: Build Posting Lists + Skip Pointers
 		TreeMap<Integer, List<Byte>> buffer = new TreeMap<>();
 		HashMap<Integer, List<Integer>> docBuffer;
 		int flag = 0;
@@ -308,9 +333,9 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 
 			for(String word: parseDocument(fileEntry)) {
 				//Stopwords
-				//if(stopWords.contains(word)) {
-				//	continue;
-				//}
+				if(stopWords.contains(word)) {
+					continue;
+				}
 
 				//TODO: Look for locations to suggest
 				//for( gkb.getCandidates(term))
@@ -358,18 +383,18 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 
 		System.out.println("Finished");
 
+		//======================================= Testing Area
+
 		//TESTING: Load Index
-		//_cache = new HashMap<>();
+		//_posting_cache = new HashMap<>();
 		//System.out.println(_dictionary.get("the").docFreq);
-		//System.out.println(documentTermFrequency("50 cent", 0));
-		//System.out.println(Arrays.toString(loadPostingFile("quick")));
-		//System.out.println(Arrays.toString(loadPostingFile("sun")));
-		//System.out.println(Arrays.toString(next("when the sun hits the hills just right", 1)));
-		//System.out.println(Arrays.toString(loadPostingFile("right", -1)));
-		//System.out.println(next("the", 100)._docid);
-		//System.out.println(next("the", -1)._docid);
-		//System.out.println(next("the", 266)._docid);
-		//System.out.println(next("the", 267));
+
+		//Bench-mark
+		//System.out.println(documentTermFrequency("hello world", 2));
+		//System.out.println(corpusDocFrequencyByTerm("java sings hello world please"));
+		//System.out.println(corpusTermFrequency("hello world"));
+
+		//======================================= Phase 4: Serialize This Object
 
 		//Store serialized versions of _docs, _dictionary, _threshold, _totalTermFrequency
 		String indexFileName = _options._indexPrefix + "/compressed.idx";
@@ -385,8 +410,13 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		writer.close();
 	}
 
+	//Parse the Document Nicely
 	private String[] parseDocument(File doc) throws Exception {
-		return cleanDocument(Jsoup.parse(doc, "UTF-8").text()).split("\\s+");
+		Elements title = Jsoup.parse(doc, "UTF-8").select("title");
+		Elements paragraphs = Jsoup.parse(doc, "UTF-8").select("p");
+		String docText = cleanDocument(title.text()) + " " + cleanDocument(paragraphs.text());
+
+		return docText.split("\\s+");
 	}
 
 	private DocumentIndexed buildDocument(File doc, int doc_id, int count, double pagerank, int numviews) throws Exception {
@@ -431,10 +461,10 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 
 			//Jump to Last Byte
 			for(Byte docId: termPostingList.getValue()) {
-				raIndFile.seek(updateTerm.lastbyte);
+				raIndFile.seek(updateTerm.lastbytePosting);
 				raIndFile.writeByte(docId);
-				raIndFile.seek(updateTerm.lastbyte);
-				updateTerm.lastbyte++;
+				raIndFile.seek(updateTerm.lastbytePosting);
+				updateTerm.lastbytePosting++;
 			}
 
 		}
@@ -447,15 +477,15 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 	}
 
 	//Individual Term load
-	public int[] loadPostingFile(String term) {
+	public PostingSkipTuple loadPostingFile(String term) {
 
 		if(!_dictionary.containsKey(term))
 			return null;
 
 		int term_id = _dictionary.get(term).id;
 
-		if(_cache.containsKey(term_id)) {
-			return _cache.get(term_id);
+		if(_posting_cache.containsKey(term_id)) {
+			return _posting_cache.get(term_id);
 		}
 
 		manageCache();
@@ -463,6 +493,8 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		TermInfo retrieveTerm = _dictionary.get(term);
 
 		ArrayList<Integer> postingList = new ArrayList<>();
+		ArrayList<Integer> skipList = new ArrayList<>();
+
 		int buffer = 0;
 		int shift = 0;
 		boolean controlBit;
@@ -471,7 +503,10 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		try {
 			RandomAccessFile raf = new RandomAccessFile(_postings_list_dir + Integer.toString(retrieveTerm.file), "r");
 
-			for(long pos = retrieveTerm.start; pos < retrieveTerm.lastbyte; pos++) {
+			int counter = 0;
+
+			//Decode
+			for(long pos = retrieveTerm.startPosting; pos < retrieveTerm.lastbytePosting; pos++) {
 				raf.seek(pos);
 				vbyte = raf.readByte();
 				controlBit = ((vbyte >> 7) & 1) > 0;
@@ -479,7 +514,20 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				vbyte = (byte) (vbyte & 0x7F);
 				buffer = (buffer << shift) + vbyte;
 				if(controlBit) {//Last bit is set so last
+
+					//Add Skip Pointer
+					if(counter == 0) {
+						skipList.add(postingList.size());
+						counter = -1; //Next Number is the size of
+					} else if(counter == -1) {
+						counter = buffer;
+					} else {
+						counter--;
+					}
+
+					//Add Buffer to Posting List
 					postingList.add(buffer);
+
 					buffer = 0;
 					shift = 0;
 				} else {
@@ -491,17 +539,12 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 			e.printStackTrace();
 		}
 
-		int[] output = new int[postingList.size()];
-		int ind = 0;
-		for(Integer val: postingList) {
-			output[ind] = val;
-			ind++;
-		}
+		PostingSkipTuple pst = new PostingSkipTuple(postingList, skipList);
 
 		//Turn postingList array into output
-		_cache.put(term_id, output);
+		_posting_cache.put(term_id, pst);
 
-		return output;
+		return pst;
 	}
 
 	@Override
@@ -529,7 +572,13 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		//Garbage Collection drop loaded object
 		loaded = null;
 
-		_cache = new HashMap<>();
+		_posting_cache = new HashMap<>();
+		_doccount_cache = new HashMap<>();
+		_termcount_cache = new HashMap<>();
+
+		//======================================== Testing
+
+		//=========================================
 	}
 
 	@Override
@@ -540,117 +589,134 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 	//Manage cache, remove term with lowest size of terms
 	//TODO: Optimize by removing # terms from cache
 	private void manageCache() {
-		if(_cache.size() > cacheSize) {
+		if(_posting_cache.size() > cacheSize) {
 			int lowestsize = Integer.MAX_VALUE;
 			Integer removeKey = null;
-			for(Integer key: _cache.keySet()) {
-				if(lowestsize > _cache.get(key).length) {
-					lowestsize = _cache.get(key).length;
+			for(Integer key: _posting_cache.keySet()) {
+				if(lowestsize > _posting_cache.get(key).skipList.length) {
+					lowestsize = _posting_cache.get(key).skipList.length;
 					removeKey = key;
 				}
 			}
-			_cache.remove(removeKey);
+			_posting_cache.remove(removeKey);
 		}
 	}
 
-	//Recursive form of next Doc
+	//Wrapper of nextDoc
 	public Document nextDoc(Query query, int docid) {
-		boolean isSame = true;
-		int maxDocId = -1;
+		try {
+			boolean isSame = true;
+			int maxDocId = -1;
 
-		for(String term : query._tokens) {
-			int[] doc = next(term, docid);
+			//Just makes sure they are all in the same document
+			for(String term : query._tokens) {
+				int[] doc = next(term, docid);
 
-			if(doc == null || doc[0] > _docs.size())
-				return null;
+				if(doc == null || doc[0] > _docs.size())
+					return null;
 
-			if(maxDocId == -1) //First Assignment
-				maxDocId = doc[0];
+				if(maxDocId == -1) //First Assignment
+					maxDocId = doc[0];
 
-			//If not equal to max Doc Id, not the same
-			if(maxDocId != doc[0]) {
-				isSame = false;
-				maxDocId = Math.max(doc[0], maxDocId);
+				//If not equal to max Doc Id, not the same
+				if(maxDocId != doc[0]) {
+					isSame = false;
+					maxDocId = Math.max(doc[0], maxDocId);
+				}
 			}
+
+			//If all the same return
+			if(isSame)
+				return _docs.get(maxDocId);
+
+			//recurse
+			return nextDoc(query, maxDocId - 1);
+		} catch( Exception e) {
+			e.printStackTrace();
 		}
-
-		//If all the same return
-		if(isSame)
-			return _docs.get(maxDocId);
-
-		//recurse
-		return nextDoc(query, maxDocId - 1);
+		return null;
 	}
 
-	//TODO: Work on Heavily: Linear
+	//Skip Pointers
 	public int[] next(String term, int docId) {
-		int[] nextDoc;
-		String[] phrase = term.split("\\s+");
+		try {
+			//Single Term or Phrase that must be in order
 
-		if(phrase.length > 1) {
-			nextDoc = new int[phrase.length + 1];
-		} else {
-			nextDoc = new int[2];
-		}
+			int[] nextDoc;
+			String[] phrase = term.split("\\s+");//Split on Space
 
-		int thresholdDocId = docId;
+			if(phrase.length > 1) {
+				nextDoc = new int[phrase.length + 1];
+			} else {
+				nextDoc = new int[2];
+			}
 
-		boolean isSame = false;
-		boolean inOrder = false;
+			int thresholdDocId = docId;
 
-		while(!isSame || !inOrder) {
-			int maxDocId = -1;
-			isSame = true;
+			boolean isSame = false;
+			boolean inOrder = false;
 
-			for(int termPos = 0 ; termPos < phrase.length; termPos++) {
-				int[] posting_list = loadPostingFile(phrase[termPos]);
+			while(!isSame || !inOrder) {
+				int maxDocId = -1;
+				isSame = true;
 
-				if(posting_list == null) {
-					return null;
-				}
+				for(int termPos = 0 ; termPos < phrase.length; termPos++) {
+					PostingSkipTuple posting_skip_list = loadPostingFile(phrase[termPos]);
 
-				//Linear Scan
-				while(posting_list[nextDoc[termPos + 1]] <= thresholdDocId) {
-					nextDoc[termPos + 1] += 2 + posting_list[nextDoc[termPos + 1] + 1];
-					if(nextDoc[termPos + 1] >= posting_list.length) {
+					if(posting_skip_list == null) {
 						return null;
+					}
+
+					//SkipList find element greater than thresholdDocId
+					int ind = findNextDocAbove(posting_skip_list, thresholdDocId);
+					if(ind == -1)
+						return null;
+
+					nextDoc[termPos + 1] = posting_skip_list.skipList[ind];
+
+					nextDoc[0] = posting_skip_list.postingList[nextDoc[termPos + 1]];
+
+					if(maxDocId == -1) {
+						maxDocId = nextDoc[0];
+					} else if(maxDocId != nextDoc[0]) {
+						isSame = false;
+						maxDocId = Math.max(nextDoc[0], maxDocId);
 					}
 				}
 
-				nextDoc[0] = posting_list[nextDoc[termPos + 1]];
+				thresholdDocId = maxDocId - 1;
 
-				if(maxDocId == -1) {
-					maxDocId = nextDoc[0];
-				} else if(maxDocId != nextDoc[0]) {
-					isSame = false;
-					maxDocId = Math.max(nextDoc[0], maxDocId);
+				if(isSame){
+					if(inOrder(term, nextDoc))
+						inOrder = true;
+					else
+						thresholdDocId++;
 				}
+
 			}
 
-			thresholdDocId = maxDocId - 1;
-
-			if(isSame){
-				if(inOrder(term, nextDoc))
-					inOrder = true;
-				else
-					thresholdDocId++;
-			}
-
+			return nextDoc;
+		} catch( Exception e) {
+			e.printStackTrace();
 		}
+		return null;
+	}
 
-		return nextDoc;
+	//Returns all the unique Words in Corpus
+	public int uniqueWords() {
+		return _dictionary.size();
 	}
 
 	//Bounded Binary Search: Because words are less frequent
 	public boolean inOrder( String phrase, int[] docPos ) {
 		if(!phrase.contains(" ")) //Just a single term
-			return loadPostingFile(phrase)[docPos[1] + 1] > 0;
+			return loadPostingFile(phrase).postingList[docPos[1] + 1] > 0;
 
 		return documentPhraseFrequency(phrase, docPos, false) > 0;
 	}
 
 	//Binary Search in Occurrences
-	public int nextOcc(int[] occurrences, int threshold , int low, int high) {
+	public int nextOcc(Integer[] occurrences, int threshold , int low, int high) {
 		//Binary search over postinglist
 		int mid;
 
@@ -675,8 +741,39 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		return high;
 	}
 
+	//Binary Search in SkipList
+	public int findNextDocAbove(PostingSkipTuple pst, int threshold) {
+		//Binary search over skiplist
+		int mid;
+		int low = 0;
+		int high = pst.skipList.length - 1;
+
+		while(low < high) {
+			mid = (low + high) / 2;
+			if(pst.postingList[pst.skipList[mid]] <= threshold) {
+				low = mid + 1;
+			} else {
+				high = mid;
+			}
+		}
+
+		//Cannot go higher
+		if(pst.postingList[pst.skipList[high]] <= threshold) {
+			return -1;
+		}
+
+		if(pst.postingList[pst.skipList[low]] > threshold) {
+			return low;
+		}
+
+		return pst.skipList[high];
+	}
+
 	@Override
 	public int corpusTermFrequency(String term) {
+		if(_termcount_cache.containsKey(term))
+			return _termcount_cache.get(term);
+
 		if(term.contains(" ")){ //Work on Phrase
 			int count = 0;
 			int[] doc = new int[]{-1, -1};
@@ -685,53 +782,60 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				count += documentPhraseFrequency(term, doc, true);
 			}
 
+			_termcount_cache.put(term, count);
 			return count;
 		}
 
 		if (_dictionary.containsKey(term)) {
-			 return _dictionary.get(term).corpFreq;
+			return _dictionary.get(term).corpFreq;
 		} else {
-			 return 0;
+			return 0;
 		}
 	}
 
 	@Override
 	public int corpusDocFrequencyByTerm(String term) {
+		if(_doccount_cache.containsKey(term))
+			return _doccount_cache.get(term);
+
 		if(term.contains(" ")){ //Work on Phrase
 			int count = 0;
 			int[] doc = new int[]{-1, -1};
 
+			//Go through each doc that contains
 			while((doc = next(term, doc[0])) != null) {
-				if(documentPhraseFrequency(term, doc, false) > 0)
-					count++;
+				count++;
 			}
+
+			_doccount_cache.put(term, count);
 
 			return count;
 		}
 
 		if (_dictionary.containsKey(term)) {
-			 return _dictionary.get(term).docFreq;
+			return _dictionary.get(term).docFreq;
 		} else {
-			 return 0;
+			return 0;
 		}
 	}
 
 	@Override
 	public int documentTermFrequency(String term, int docid) {
+
 		int[] doc = next(term, docid - 1);
 
 		//docid does not contain term frequency
-		if(doc[0] != docid)
+		if(doc == null || doc[0] != docid)
 			return 0;
 
 		//Not Phrase
 		if (!(term.contains(" "))) {
-			int[] postings_list = loadPostingFile(term);
+			PostingSkipTuple pst = loadPostingFile(term);
 
-			if (postings_list == null)
+			if (pst == null)
 				return 0;
 
-			return postings_list[doc[1] + 1];
+			return pst.postingList[doc[1] + 1];
 		} else { // else it is a phrase
 			return documentPhraseFrequency(term, doc, true);
 		}
@@ -748,7 +852,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		//Get Ending Positions
 		int[] end = new int[docPos.length];
 		for(int termPos = 0; termPos < phrase.length; termPos++) {
-			int[] postingsList = loadPostingFile(phrase[termPos]);
+			Integer[] postingsList = loadPostingFile(phrase[termPos]).postingList;
 			end[termPos] = docPos[termPos] + 1 + postingsList[docPos[termPos] + 1];
 
 			//Start at the first Occurrence
@@ -768,7 +872,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		while(startIndex != -1) {
 			boolean flag = true;
 
-			int firstWordOcc = loadPostingFile(phrase[0])[startIndex];
+			int firstWordOcc = loadPostingFile(phrase[0]).postingList[startIndex];
 			maxPos = firstWordOcc + 1; //So it won't pick the same position again
 
 			HashMap<String, Integer> lastSeen = new HashMap<>();
@@ -781,7 +885,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				if(lastSeen.containsKey(phrase[termPos])) {
 					termOccIndex = lastSeen.get(phrase[termPos]) + 1;
 				} else {
-					termOccIndex = nextOcc(loadPostingFile(phrase[termPos]),
+					termOccIndex = nextOcc(loadPostingFile(phrase[termPos]).postingList,
 							firstWordOcc, lastPos[termPos], end[termPos]);
 					lastSeen.put(phrase[termPos], termOccIndex);
 				}
@@ -793,7 +897,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				lastPos[termPos] = termOccIndex; //Update last Call
 
 				//Get the actual Occurrence
-				int nextWordOcc = loadPostingFile(phrase[termPos])[termOccIndex];
+				int nextWordOcc = loadPostingFile(phrase[termPos]).postingList[termOccIndex];
 
 				maxPos = Math.max(nextWordOcc - termPos, maxPos);
 
@@ -815,7 +919,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 			}
 
 			//Fix Find new occurrence
-			startIndex = nextOcc( loadPostingFile(phrase[0]),
+			startIndex = nextOcc( loadPostingFile(phrase[0]).postingList,
 					maxPos - 1, lastPos[0], end[0]);
 			lastPos[0] = startIndex;
 		}
