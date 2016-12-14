@@ -340,8 +340,10 @@ public class LocationParser {
 
 		}
 		else {
+			s=s.trim();
+			System.out.println("s trimmed: "+s.length());
 			String[] given = s.split("\\s+");
-
+			System.out.println("given len:"+given.length);
 			int l = given.length;
 			int[] indexToRemove = new int[l];
 
