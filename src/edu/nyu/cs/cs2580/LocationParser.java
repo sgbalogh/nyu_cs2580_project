@@ -44,7 +44,6 @@ public class LocationParser {
 
 		//System.out.println("total term frequency: "+_indexer.totalTermFrequency());
 
-
 		String currentStringTested="";
 		String currentStringTested2="";
 		int freq1=0;
@@ -407,7 +406,7 @@ public class LocationParser {
 			System.out.println("IO exception found!");
 		}
 
-
+		System.out.println(toReturn.toString());
 		return toReturn;
 	}
 
@@ -429,8 +428,6 @@ public class LocationParser {
 			List<String> seperatedTerms = new ArrayList<>();    //Split by spaces or quotes
 
 			//Check for Locations
-			QueryBoolGeo toReturn = new QueryBoolGeo(givenQuery);
-
 			Matcher m = Pattern.compile("([^\"\\s]+|[^\"]\\S+|\".*?\")\\s*").matcher(givenQuery);
 			while (m.find()) {
 				String token = m.group(1).toLowerCase().replaceAll("[^A-Za-z0-9\"\\s]", "").trim();
@@ -444,10 +441,10 @@ public class LocationParser {
 				}
 
 				if(token.length() > 0)
-					toReturn._tokens.add(token);
+					seperatedTerms.add(token);
 			}
 
-			/*double[] scores = new double[seperatedTerms.size()];
+			double[] scores = new double[seperatedTerms.size()];
 			int[] pointers = new int[seperatedTerms.size()];
 
 			System.out.println("Orig Terms: " + givenQuery);
@@ -518,7 +515,7 @@ public class LocationParser {
 				for (String location_term : uname.split(",")) {
 					toReturn._tokens.add(location_term);
 				}
-			}*/
+			}
 
 			return toReturn;
 		} catch( Exception e) {

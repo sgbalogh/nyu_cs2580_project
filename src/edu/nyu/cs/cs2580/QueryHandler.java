@@ -251,8 +251,10 @@ class QueryHandler implements HttpHandler {
       // USE LOCATION PARSER
       // Feed it a string of the entire user-issued query
       //===============================================
-
+      long start = System.currentTimeMillis();
       QueryBoolGeo processedQuery = _location_parser.parseQuery(cgiArgs._query, cgiArgs._geoID, cgiArgs._uname);
+      long end = System.currentTimeMillis();
+      System.out.println("Time: " + (end - start));
       processedQuery.best = cgiArgs._best;
       System.out.println("Location Parser: FINISHED PARSING QUERY");
 

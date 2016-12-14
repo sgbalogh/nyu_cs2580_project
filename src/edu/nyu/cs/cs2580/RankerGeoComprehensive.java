@@ -416,19 +416,19 @@ public class RankerGeoComprehensive extends Ranker {
             //Normal Tokens
             for(String term : query._tokens) {
                 int docTermFreq = _indexer.documentTermFrequency(term, doc._docid);
-                score = Math.sqrt(docTermFreq) * ((Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1);
+                //score = Math.sqrt(docTermFreq) * ((Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1);
 
                 //System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
                 //score += Math.pow(_indexer.corpusDocFrequencyByTerm(term), 2) / (doc._numWords + query._tokens.size());
 
-                double overlap = (docTermFreq + 0.0) / doc._numWords;
+                //double overlap = (docTermFreq + 0.0) / doc._numWords;
                 //System.out.println(overlap);
 
-                 /*score += Math.sqrt(docTermFreq) * //Term Frequency
+                 score += Math.sqrt(docTermFreq) * //Term Frequency
                         Math.pow(
                                 (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1.0
                                 ,2.0) * //IDF
-                        (1.0 / Math.sqrt(query._tokens.size(s))) * overlap; //Overlap; //lengthNorm*/
+                        (1.0 / Math.sqrt(query._tokens.size())); //Overlap; //lengthNorm*/
 
                 //Better Than QL: guatemala
             	 /* score += Math.log(
