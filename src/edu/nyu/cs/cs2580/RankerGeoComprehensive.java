@@ -104,7 +104,7 @@ public class RankerGeoComprehensive extends Ranker {
             ScoredSumTuple origBenchmark = runQuery(query, numResults);
             
             //Populate Suggestions
-            for(GeoSuggestTuple ge : suggests(query, 0)) {
+            for(GeoSuggestTuple ge : suggests(query, 10)) {
             	query.suggestionGeoIds.add(ge.geoId);
             }
             
@@ -412,7 +412,7 @@ public class RankerGeoComprehensive extends Ranker {
         return null;
     }
 
-    private int scoringMethod = 2;
+    private int scoringMethod = 3;
 
     public Double scoreDocument(QueryBoolGeo query, DocumentIndexed doc) {
         Double score = 0.0;

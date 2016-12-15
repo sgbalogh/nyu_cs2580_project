@@ -11,11 +11,13 @@ public class HtmlGenerator {
     List<ScoredDocument> documents;
     StringBuilder builder;
     QueryBoolGeo qbg;
+    SpatialEntityKnowledgeBase gkb;
 
-    public HtmlGenerator(List<ScoredDocument> docs, QueryBoolGeo query) {
+    public HtmlGenerator(List<ScoredDocument> docs, QueryBoolGeo query, SpatialEntityKnowledgeBase gkb) {
         this.documents = docs;
         this.qbg = query;
         this.builder = new StringBuilder();
+        this.gkb = gkb;
         this.construct();
     }
 
@@ -36,11 +38,13 @@ public class HtmlGenerator {
     private void constructAmbiguous() {
         createSpatialHead();
         createAmbiguousBody();
+        createSharedFooter();
     }
 
     private void constructNonSpatial() {
         createNonSpatialHead();
         createNonSpatialBody();
+        createSharedFooter();
     }
 
     private String generateGeoJSONforAmbiguous() {
@@ -54,9 +58,40 @@ public class HtmlGenerator {
         return SpatialEntityKnowledgeBase.makeGeoJSON(combined);
     }
 
+    private void createSharedFooter() {
+
+        ArrayList<GeoEntity> suggested = new ArrayList<>();
+
+        for (Integer id : qbg.suggestionGeoIds) {
+            suggested.add(gkb.getDefinedLocation(id));
+        }
+
+        if (suggested.size() > 0) {
+
+            builder.append("" +
+                    "<br><div class=\"container\">" +
+                    "<div class=\"well\"><em>Most Probable Locations:</em>" +
+                    "<ol>");
+
+            for (GeoEntity en : suggested) {
+                builder.append("<li>").append(en.getName()).append("</li>\n");
+            }
+
+            builder.append("</ol></div>" +
+                    "<div>");
+
+
+        }
+        builder.append(
+                "</body>\n" +
+                "</html>" +
+                "");
+    }
+
     private void constructSpatial() {
         createSpatialHead();
         createSpatialBody();
+        createSharedFooter();
     }
 
     private void createNonSpatialBody() {
@@ -360,8 +395,7 @@ public class HtmlGenerator {
                 "</script>\n" +
                 "\n" +
                 "\n" +
-                "</body>\n" +
-                "</html>");
+                "");
 
     }
 
@@ -499,9 +533,7 @@ public class HtmlGenerator {
                 "\n" +
                 "</script>\n" +
                 "\n" +
-                "\n" +
-                "</body>\n" +
-                "</html>");
+                "\n");
 
     }
 

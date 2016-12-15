@@ -202,7 +202,7 @@ class QueryHandler implements HttpHandler {
 
   public void constructHtmlOutput(final Vector<ScoredDocument> docs, StringBuffer response, QueryBoolGeo processed, SpatialEntityKnowledgeBase gkb) {
 
-    HtmlGenerator htmlDocument = new HtmlGenerator(docs, processed);
+    HtmlGenerator htmlDocument = new HtmlGenerator(docs, processed, gkb);
 
     response.append(htmlDocument.toString());
 
