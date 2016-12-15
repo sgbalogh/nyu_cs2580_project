@@ -63,7 +63,7 @@ public class HtmlGenerator {
         builder.append("<body>\n" +
                 "<div class=\"container\">\n" +
                 "    <h3>");
-        builder.append(this.qbg._query);
+        builder.append(this.qbg._tokens.toString().replaceAll("[^A-Za-z0-9 ]", ""));
         builder.append("</h3>\n" +
                 "    <input type=\"text\" class=\"form-control\" value=\"\" placeholder=\"Search here...\"\n" +
                 "           id=\"search_bar\">\n" +
@@ -200,17 +200,24 @@ public class HtmlGenerator {
                 "\n" +
                 "       var non_spatial_query = \"");
 
-        // HERE we want to insert the non-spatial terms:
+        //HERE we want to insert the non-spatial terms:
         builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
 
         builder.append("\";\n" +
                 "      var button_link = \"./search?\" + getStringForNewSearch(non_spatial_query) + \"&best=true&place=");
-        builder.append(qbg.get_candidate_geo_entities().get(0).getId());
+        //Comma Seperated place Ids
+        StringBuilder expandedIds = new StringBuilder();
+        for(GeoEntity ge: qbg.get_expanded_geo_entities()) {
+        	if(expandedIds.length() > 0)
+        		expandedIds.append(",");
+        	expandedIds.append(ge.getId());
+        }
+        builder.append(expandedIds.toString());
         builder.append("\";\n" +
                 "\n" +
                 "        $('document').ready(function () {\n" +
                 "            $('#button_zone').append(\"<a class=\\\"btn btn-default\\\" href=\\\"\" + button_link + \"\\\" role=\\\"button\\\">See all results for general area</a>\");\n" +
-                "            $(\"#search_bar\").val(getQueryFromQueryString());\n" +
+                //"            $(\"#search_bar\").val(getQueryFromQueryString());\n" +
                 "            $(\"#search_bar\").keyup(function (event) {\n" +
                 "                if (event.keyCode == 13) {\n" +
                 "                    value = $(\"#search_bar\").val();\n" +
@@ -225,12 +232,14 @@ public class HtmlGenerator {
     }
 
     private void createAmbiguousBody() {
-        builder.append("<body>\n" +
+    	String lastQuery = this.qbg._tokens.toString().replaceAll("[^A-Za-z0-9 ]", "");
+        builder.append("<body>" +
                 "<div class=\"container\">\n" +
                 "    <h3>");
-        builder.append(this.qbg._query);
+        builder.append(lastQuery);
         builder.append("</h3>\n" +
-                "    <input type=\"text\" class=\"form-control\" value=\"\" placeholder=\"Search here...\"\n" +
+                "    <input type=\"text\" class=\"form-control\" value=\"");
+        builder.append(lastQuery).append("\" placeholder=\"Search here...\"\n" +
                 "           id=\"search_bar\">\n" +
                 "    <br>\n" +
                 "\n" +
@@ -250,7 +259,6 @@ public class HtmlGenerator {
             builder.append(doc.asHtmlResult());
         }
 
-
         builder.append("</tbody>\n" +
                 "        </table>\n" +
                 "    </div>\n" +
@@ -261,7 +269,7 @@ public class HtmlGenerator {
         builder.append("</code> did you mean?</h4><h5>Click on one to select...</h5>\n" +
                 "        <div id=\"map\">\n" +
                 "        </div><br>\n" +
-                "<div class=\"well well-sm\">\n" +
+                "		<div class=\"well well-sm\">\n" +
                 "          <ol id=\"amb_links\">\n" +
                 "          </ol>\n" +
                 "        </div>" +
@@ -322,6 +330,8 @@ public class HtmlGenerator {
                 "onEachFeature: function (feature, layer) {\n" +
                 "            var non_location_q = \"");
         // INSERT NON LOCATION QUERY HERE
+        
+        //TODO: Create this more intelligently to include other locations as non-candidates
         builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
 
         builder.append("\";\n" +
@@ -356,12 +366,14 @@ public class HtmlGenerator {
     }
 
     private void createSpatialBody() {
+    	String lastQuery = qbg._tokens.toString().replaceAll("[^A-Za-z0-9 ]", "");
         builder.append("<body>" +
                 "<div class=\"container\">\n" +
                 "    <h3>");
-        builder.append(this.qbg._query);
+        builder.append(lastQuery);
         builder.append("</h3>\n" +
-                "    <input type=\"text\" class=\"form-control\" value=\"\" placeholder=\"Search here...\"\n" +
+                "    <input type=\"text\" class=\"form-control\" value=\"");
+        builder.append(lastQuery).append("\" placeholder=\"Search here...\"\n" +
                 "           id=\"search_bar\">\n" +
                 "    <br>\n" +
                 "\n" +
@@ -380,7 +392,6 @@ public class HtmlGenerator {
         for (ScoredDocument doc : this.documents) {
             builder.append(doc.asHtmlResult());
         }
-
 
         builder.append("</tbody>\n" +
                 "        </table>\n" +
@@ -401,6 +412,10 @@ public class HtmlGenerator {
                 "        <div id=\"map\">\n" +
                 "        </div>\n" +
                 "        <br>\n" +
+                "		<div class=\"well well-sm\">\n" +
+                "          <ol id=\"amb_links\">\n" +
+                "          </ol>\n" +
+                "        </div>" +
                 "        <div id=\"button_zone\">\n" +
                 "        </div>\n" +
                 "    </div>\n" +
@@ -461,8 +476,13 @@ public class HtmlGenerator {
                 "            var non_location_q = \"");
         builder.append(qbg.getSupportingTokens().toString().replaceAll("[^A-Za-z0-9]", " ").trim());
                 builder.append("\";\n" +
-                "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id; // + \"&uname=\" + feature.properties.addl_terms;\n" +
-                "            layer.bindPopup(feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name);\n" +
+                "            var request_url = getStringForNewSearch(encodeURI(non_location_q)) + \"&place=\" + feature.id + \"&uname=\" + feature.properties.addl_terms;\n" +
+                "            var link_text = feature.properties.name;\n" +
+                "            if (feature.properties.state != null) {\n" +
+                "              link_text += \", \" + feature.properties.state;\n" +
+                "            }\n" +
+                "            $('#amb_links').append(\"<li><a href=\\\"\" + \"./search?\" + request_url + \"\\\">\" + link_text + \"</a></li>\");\n" +
+                "			 layer.bindPopup(feature.properties.type == 'primary' ? '<b>' + feature.properties.name + '</b>' : feature.properties.name);\n" +
                 "            layer.on('mouseover', function (e) {\n" +
                 "                this.openPopup();\n" +
                 "            });\n" +

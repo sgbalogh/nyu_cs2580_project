@@ -44,8 +44,7 @@ public class GeoEntity implements Serializable {
     public GeoEntity parent;
     public LinkedList<GeoEntity> children;
     public LinkedList<GeoEntity> nearby;
-
-
+    
     public GeoEntity(Integer id, String primaryName, String type) {
         this.id = id;
         this.primaryName = primaryName;
@@ -237,15 +236,6 @@ public class GeoEntity implements Serializable {
             }
             json.append("]}");
             return json.toString();
-        }
-        return null;
-    }
-
-
-    public String[] getChildrenNames(int max) {
-        if (this.children.size() > 0) {
-            int stop_int = (max > this.nearby.size()) ? this.nearby.size() : max;
-            String[] toReturn = new String[stop_int];
         }
         return null;
     }

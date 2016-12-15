@@ -36,6 +36,9 @@ public class QueryBoolGeo extends Query{
     public boolean best = false;
 
     public HashMap<Integer, String> _ambiguous_URLs; //GeoID => URL
+    
+    //Experiment
+    public List<Integer> suggestionGeoIds;
 
     public QueryBoolGeo(String inputString) {
         super(inputString);
@@ -44,6 +47,7 @@ public class QueryBoolGeo extends Query{
         _expanded_geo_entities = new ArrayList<>();
         _supporting_tokens = new ArrayList<>();
         _ambiguous_URLs = new HashMap<>();
+        suggestionGeoIds = new ArrayList<>();
     }
 
     // Resolve loops through all candidate geo entities, checking if any of them
@@ -99,7 +103,9 @@ public class QueryBoolGeo extends Query{
                 if (list.size() > 1) {
                     for (GeoEntity ge : list) {
                         String expanded_name;
-                        if (level == 0){
+                        if(ge.type.equals("STATE")) { //States don't have duplicates
+                        	expanded_name = ge.getName();
+                        } else if(level == 0) {
                             expanded_name = ge.getName() + "," + ge.getStateName();
                         } else {
                             expanded_name = ge.getName() + "," + ge.getCountyName() + "," + ge.getStateName();

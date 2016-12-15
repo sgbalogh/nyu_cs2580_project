@@ -38,7 +38,7 @@ class QueryHandler implements HttpHandler {
     // How many terms to return
     private int _numTerms= 10;
 
-    private int _geoID = -1;
+    private String _geoID = null;
 
     private String _uname = null;
 
@@ -96,7 +96,7 @@ class QueryHandler implements HttpHandler {
           }
         } else if (key.equals("place")) {
           try {
-            _geoID = Integer.parseInt(val);
+            _geoID = val;
           } catch (IllegalArgumentException e) {
 
           }
@@ -266,6 +266,14 @@ class QueryHandler implements HttpHandler {
       // LIST OF GEOENTITIES IS WITHIN QBG
       Vector<ScoredDocument> scoredDocs =
               ranker.runQuery(processedQuery, cgiArgs._numResults);
+      
+      //Try to suggest queries in runQuery
+      System.out.println("Suggestions: ");
+      for(Integer geoId : processedQuery.suggestionGeoIds) {
+    	System.out.println(_gkb.getDefinedLocation(geoId).getName());  
+      }
+      
+      System.out.println(processedQuery._tokens.toString());
 
       try {
         StringBuffer response = new StringBuffer();

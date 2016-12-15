@@ -2,10 +2,13 @@ package edu.nyu.cs.cs2580;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Vector;
@@ -50,41 +53,20 @@ public class RankerGeoComprehensive extends Ranker {
         }
     }
 
-    //Peeking Iterator for Merging
-    public class PeekingIterator {
-        public ScoredDocument doc;
-        public double queryNorm;
-        public Iterator<ScoredDocument> iter;
-
-        public PeekingIterator(Vector<ScoredDocument> scored, double queryNorm) {
-            iter = scored.iterator();
-            doc = iter.next();
-            this.queryNorm = queryNorm;
-        }
-
-        public boolean pop() {
-            if(iter.hasNext())
-                return false;
-
-            doc = iter.next();
-            return true;
-        }
-    }
-
     //Testing
-    public double _orig_threshold = 2.0; //Determines if original score is strong enough not to do expansion
-    public double _expanded_threshold = 1.0; //Significant expansion term score threshold
+    public double _orig_threshold = 1.0; //Determines if original score is strong enough not to do expansion
+    public double _expanded_threshold = 0.5; //Significant expansion term score threshold
 
-    public int _max_expansion = 50; //Max number of Expansion Terms
+    public int _max_expansion = 10;//50; //Max number of Expansion Terms
+    
+    private HashMap<String, Double> boostValues;
 
     //Cache: ~5 expanded terms in cache
     //TODO: Manage Cache memory
-    //public HashMap<String, ScoredSumTuple> _cache;
 
     public RankerGeoComprehensive(SearchEngine.Options options,
                                   QueryHandler.CgiArguments arguments, Indexer indexer) {
         super(options, arguments, indexer);
-        //_cache = new HashMap<>();
         System.out.println("Using Ranker: " + this.getClass().getSimpleName());
     }
 
@@ -99,6 +81,18 @@ public class RankerGeoComprehensive extends Ranker {
             // Initial Query Run
             //=============================================
             QueryBoolGeo query = (QueryBoolGeo) init_query;
+            
+            //Boosting Values
+            boostValues = new HashMap<>();
+            //CITY=5, COUNTY=3, STATE=2, NATION=1
+            for(GeoEntity ge: query.get_candidate_geo_entities()) {
+            	if(ge.type.equals("CITY"))
+            		boostValues.put(ge.getName().toLowerCase().trim(), 1.7);
+            	else if(ge.type.equals("COUNTY"))
+            		boostValues.put(ge.getName().toLowerCase().trim(), 1.5);
+            	else if(ge.type.equals("STATE"))
+            		boostValues.put(ge.getName().toLowerCase().trim(), 1.2);
+            }
 
             if(init_query._tokens.size() == 0) //Flat out empty String
                 return new Vector<ScoredDocument>();
@@ -108,7 +102,12 @@ public class RankerGeoComprehensive extends Ranker {
             }
 
             ScoredSumTuple origBenchmark = runQuery(query, numResults);
-
+            
+            //Populate Suggestions
+            for(GeoSuggestTuple ge : suggests(query, 0)) {
+            	query.suggestionGeoIds.add(ge.geoId);
+            }
+            
             System.out.println("Original Finished: " + origBenchmark.scored.size() + " Score: " + (origBenchmark.total_score / origBenchmark.queryNorm));
 
             StringBuilder logs = new StringBuilder("Orig Term :");
@@ -148,8 +147,8 @@ public class RankerGeoComprehensive extends Ranker {
 
                     ScoredSumTuple newResults = runQuery(query , numResults);
 
-                    //Should I again have a threshold?
-                    if(newResults.total_score / newResults.queryNorm >= 0) {
+                    //Should I again have a threshold? Yes!
+                    if(newResults.total_score / newResults.queryNorm > 0.7 * (origBenchmark.total_score / origBenchmark.queryNorm)) {
                         scores.put(ge.getUniqueName() , newResults.total_score / newResults.queryNorm );
                     } else { //Remove if not qualified
                         geIter.remove();
@@ -171,9 +170,12 @@ public class RankerGeoComprehensive extends Ranker {
 
 
                 //Set To Ambiguous MODE
-                query._presentation_mode = GEO_MODE.AMBIGUOUS;
+                if(query.get_candidate_geo_entities().size() > 1)
+                	query._presentation_mode = GEO_MODE.AMBIGUOUS;
 
-            } else if(query.get_candidate_geo_entities().size() == 1) {
+            } 
+            
+            if(query.get_candidate_geo_entities().size() == 1) {
                 //=================================Local Expansion Mode===================================
 
                 //Determine if original benchmark is good enough to not expand
@@ -181,14 +183,16 @@ public class RankerGeoComprehensive extends Ranker {
                         &&
                         (origBenchmark.scored.size() <= numResults
                                 || //Original results not good enough
-                                origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold * numResults)) {
+                                origBenchmark.total_score / origBenchmark.queryNorm < _orig_threshold)) {
 
                     System.out.println("Expansion");
 
                     //Expand Word
 
                     query.expand(_max_expansion);
-
+                    
+                    Vector<String> tempOrig = new Vector<>(query._tokens);
+                    
                     query._tokens = new Vector<>(query.getSupportingTokens());
 
                     HashMap<String, Double> scores = new HashMap<>();
@@ -199,13 +203,18 @@ public class RankerGeoComprehensive extends Ranker {
                     while(expQueryIterator.hasNext()) {
 
                         //Create new query:
-                        String cityName = expQueryIterator.next().getName().toLowerCase().trim();
+                    	GeoEntity expanded = expQueryIterator.next();
+                        String cityName = expanded.getName().toLowerCase().trim();
 
                         QueryBoolGeo expandedQuery = new QueryBoolGeo(query._query); //Dummy query
                         Vector<String> _new_terms = new Vector<>(query.getSupportingTokens()); //Add non location terms
 
                         //Remove older CityName
                         _new_terms.add(cityName);
+                        
+                        //If population is small,qualify with state
+                        if(expanded.type.equals("CITY") && expanded.population <= 200000)
+                        	_new_terms.add(expanded.getStateName().toLowerCase().trim());
 
                         expandedQuery._tokens = _new_terms;
 
@@ -223,7 +232,7 @@ public class RankerGeoComprehensive extends Ranker {
 
                         if( normalizedScore > _expanded_threshold
                                 &&
-                                normalizedScore > 0.75 * origBenchmark.total_score / origBenchmark.queryNorm) {
+                                normalizedScore > 0.75 * (origBenchmark.total_score / origBenchmark.queryNorm)) {
 
                             ((QueryBoolGeo) init_query)._presentation_mode = GEO_MODE.EXPANSION;
 
@@ -244,13 +253,15 @@ public class RankerGeoComprehensive extends Ranker {
                     }
 
                     //Sort candidates by their scores
-                    /*query.get_expanded_geo_entities().sort( new Comparator<GeoEntity>() {
+                    query.get_expanded_geo_entities().sort( new Comparator<GeoEntity>() {
                         @Override
                         public int compare(GeoEntity o1, GeoEntity o2) {
                             return Double.compare(scores.get(o2.getName().toLowerCase().trim()),
                                     scores.get(o1.getName().toLowerCase().trim()));
                         }
-                    });*/
+                    });
+                    
+                    query._tokens = tempOrig;
 
                     //Log Expansion queries
                     if(query._presentation_mode.equals(GEO_MODE.EXPANSION)) {
@@ -296,7 +307,7 @@ public class RankerGeoComprehensive extends Ranker {
 
             HashMap<Integer, ScoredDocument> uniqDocs = new HashMap<>();
 
-            Iterator<GeoEntity> expQueryIterator = query.get_expanded_geo_entities().iterator();
+            Iterator<GeoEntity> expQueryIterator = query.get_candidate_geo_entities().iterator();
 
             //Iterator through all nearby cities of each
             while(expQueryIterator.hasNext()) {
@@ -355,7 +366,7 @@ public class RankerGeoComprehensive extends Ranker {
     }
 
     //Score All Docs
-    public ScoredSumTuple runQuery(QueryBoolGeo query, int numResults) {
+    private ScoredSumTuple runQuery(QueryBoolGeo query, int numResults) {
         try {
             Queue<ScoredDocument> rankQueue = new PriorityQueue<ScoredDocument>();
             double sum = 0.0;
@@ -364,11 +375,15 @@ public class RankerGeoComprehensive extends Ranker {
             DocumentIndexed doc = null;
             int docid = -1;
 
+            //Handling Duplicates
+            //HashSet<Integer> seenTitles = new HashSet<>();
+            
             //Get Document Indexed
             while ((doc = (DocumentIndexed) _indexer.nextDoc(query, docid)) != null) {
-                double score = scoreDocumentTFIDF(query, doc);
+                //Handle Duplicates
+            	
+            	double score = scoreDocument(query, doc);
                 rankQueue.add(new ScoredDocument(doc, score));
-                //System.out.println(doc.getTitle() + " " + score);
 
                 //Make sure top X documents are in memory
                 if (rankQueue.size() > numResults) {
@@ -384,6 +399,7 @@ public class RankerGeoComprehensive extends Ranker {
             Vector<ScoredDocument> results = new Vector<ScoredDocument>();
             ScoredDocument scoredDoc = null;
             while ((scoredDoc = rankQueue.poll()) != null) {
+            	scoredDoc.setScore(scoredDoc.getScore() / Math.sqrt(normSum));//Normalizing factor
                 results.add(scoredDoc);
             }
 
@@ -396,6 +412,59 @@ public class RankerGeoComprehensive extends Ranker {
         return null;
     }
 
+    private int scoringMethod = 2;
+
+    public Double scoreDocument(QueryBoolGeo query, DocumentIndexed doc) {
+        Double score = 0.0;
+
+        try {
+            //Normal Tokens
+            for(String term : query._tokens) {
+                //double overlap = (docTermFreq + 0.0) / doc._numWords;
+            	switch(scoringMethod) {
+	            	case 0:
+	            		score += cosine(term, query, doc);
+	            		break;
+	            	case 1:
+	            		score += tfidf(term, query, doc);
+	            		break;
+	            	case 2:
+	            		score += luceneTFIDF(term, query, doc, boostValues);
+	            		break;
+	            	case 3:
+	            		score += bm25(term, query, doc);
+	            		break;
+            	}
+            }
+            
+        	switch(scoringMethod) {
+	        	case 2:
+	        		score *= (1.0 / Math.sqrt(doc._numWords)); //lengthNorm, don't always target large docs
+	        		break;
+	    	}
+
+            //score = score * (1 + doc.getPageRank()); //TODO: multiply by pagerank + 1
+
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        return score;
+    }
+    
+    //=========================== Scoring Methods
+    
+    //Raw Cosine
+    public double cosine(String term, QueryBoolGeo query, DocumentIndexed doc) {
+    	return Math.pow(_indexer.corpusDocFrequencyByTerm(term), 2) / (doc._numWords + query._tokens.size());
+    }
+    
+    //Raw TFIDF
+    public double tfidf(String term, QueryBoolGeo query, DocumentIndexed doc) {
+    	return _indexer.documentTermFrequency(term, doc._docid) * (1 / (_indexer.corpusDocFrequencyByTerm(term) + 1.0));
+    }
+    
+    //Lucene: 
     //Modified to Lucene's formula:
     //    - https://lucene.apache.org/core/3_6_0/api/core/org/apache/lucene/search/Similarity.html
     //Get Query Likelihood Score
@@ -407,46 +476,86 @@ public class RankerGeoComprehensive extends Ranker {
      * Long documents are not as good as short ones
      * Documents which mention the search terms many times are good
      */
-
-    public Double scoreDocumentTFIDF(QueryBoolGeo query, DocumentIndexed doc) {
-        Double score = 0.0;
-
-        try {
-            int foundTerms = 0;
-            //Normal Tokens
-            for(String term : query._tokens) {
-                int docTermFreq = _indexer.documentTermFrequency(term, doc._docid);
-                //score = Math.sqrt(docTermFreq) * ((Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1);
-
-                //System.out.println(doc.getTitle() + " " + term + " " + docTermFreq);
-                //score += Math.pow(_indexer.corpusDocFrequencyByTerm(term), 2) / (doc._numWords + query._tokens.size());
-
-                //double overlap = (docTermFreq + 0.0) / doc._numWords;
-                //System.out.println(overlap);
-
-                 score += Math.sqrt(docTermFreq) * //Term Frequency
-                        Math.pow(
-                                (Math.log(_indexer._numDocs / (_indexer.corpusDocFrequencyByTerm(term) + 1.0)) / Math.log(2)) + 1.0
-                                ,2.0) * //IDF
-                        (1.0 / Math.sqrt(query._tokens.size())); //Overlap; //lengthNorm*/
-
-                //Better Than QL: guatemala
-            	 /* score += Math.log(
-                        //Probability in Document
-                        ((0.8) * _indexer.documentTermFrequency(term, doc._docid) / doc._numWords )
-                                +
-                                //Smoothing
-                                (0.2 * _indexer.corpusTermFrequency(term) / _indexer._totalTermFrequency )
-                	);*/
-            }
-
-            score = score * (1 + doc.getPageRank()); //multiply by pagerank + 1
-                    //(foundTerms / query._tokens.size()); //coord
-
-        } catch(Exception e) {
-            e.printStackTrace();
-        }
-
-        return score;
+    public double luceneTFIDF(String term, QueryBoolGeo query, DocumentIndexed doc, HashMap<String, Double> boostValues) {
+    	double numDocs = _indexer._numDocs;
+    	return Math.sqrt(_indexer.documentTermFrequency(term, doc._docid)) * //Term Frequency
+        Math.pow( Math.log( numDocs / _indexer.corpusDocFrequencyByTerm(term) + 1.0) + 1.0, 2.0) * //IDF
+        (boostValues.containsKey(term)? boostValues.get(term):1) * //Location Boosting
+        (doc.getTitle().toLowerCase().contains(term)? 10:1); //Title Boosting 
     }
+    
+    //Lucene's New BM25
+    public double bm25(String term, QueryBoolGeo query, DocumentIndexed doc) {
+    	double numDocs = _indexer._numDocs;
+    	double termFreq = _indexer.documentTermFrequency(term, doc._docid);
+    	double avgDocLength = 200; //_indexer._avgDocLength
+    	double k = 1.2;
+    	double b = 0.5;
+    	
+    	return ((k + 1) * termFreq) / (k * (1.0 - b + b * (doc._numWords/avgDocLength)) + termFreq) * //BM 25 Modified Term Frequency
+        Math.pow( Math.log( numDocs / _indexer.corpusDocFrequencyByTerm(term) + 1.0) + 1.0, 2.0) * //IDF
+        (boostValues.containsKey(term)? boostValues.get(term):1); //Location Term Boosting
+    }
+    
+    //============================================= Experimental Suggestion Engine
+    public class GeoSuggestTuple {
+    	public Integer geoId;
+    	public Double weight;
+    	
+    	public GeoSuggestTuple(Integer geoId, Double weight) {
+    		this.geoId = geoId;
+    		this.weight = weight;
+    	}
+    }
+    
+	//Keep in Memory since the assumption is that # of corresponding documents are sparse
+	public List<GeoSuggestTuple> suggests(QueryBoolGeo query, int threshold) {
+		//Create Supporting Query
+		QueryBoolGeo supportingQuery = new QueryBoolGeo(query._query);
+		supportingQuery._tokens = new Vector<String>(query.getSupportingTokens());
+		
+		System.out.println(supportingQuery._tokens.toString());
+		
+		if(supportingQuery._tokens.size() <= 0)
+			return new ArrayList<>();
+		
+		HashMap<Integer, Integer> counts = new HashMap<>();
+		
+        DocumentIndexed doc = null;
+        int docid = -1;
+
+        //Get Document Indexed
+        while ((doc = (DocumentIndexed) _indexer.nextDoc(supportingQuery, docid)) != null) {
+			for(Entry<Integer, Integer> geoTuple : ((IndexerInvertedCompressed) _indexer).geoCounts(doc._docid).entrySet()) {
+				if(counts.containsKey(geoTuple.getKey())) {
+					counts.put(geoTuple.getKey(), counts.get(geoTuple.getKey()) + geoTuple.getValue()); //Update
+				} else {
+					counts.put(geoTuple.getKey(), geoTuple.getValue()); //New Count
+				}
+			}
+			docid = doc._docid;
+		}
+		
+		//Find all scores above threshold: Return GeoEntitys
+		List<GeoSuggestTuple> bestGeoIds = new ArrayList<>(); //Returns list of GeoIds
+		
+		for(Entry<Integer, Integer> count : counts.entrySet()) {
+			double idf = (1.0 /((IndexerInvertedCompressed) _indexer).geoDocCount(count.getKey()));
+			//idf = Math.log(_indexer._numDocs/(idf+1)) + 1;
+			Double weight = count.getValue() * (0.05 + idf); //TF*IDF
+			//System.out.println("Weight: " + weight);
+			if(weight > threshold)
+				bestGeoIds.add(new GeoSuggestTuple(count.getKey(), weight));
+		}
+		
+		//Sort decreasing order
+		bestGeoIds.sort(new Comparator<GeoSuggestTuple>() {
+			@Override
+			public int compare(GeoSuggestTuple o1, GeoSuggestTuple o2) {
+				return Double.compare(o2.weight, o1.weight);
+			}
+		});
+
+		return bestGeoIds.subList(0, Math.min(10, bestGeoIds.size())); //Take top 5 for now
+	} 
 }

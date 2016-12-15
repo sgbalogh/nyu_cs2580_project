@@ -189,7 +189,8 @@ public class SearchEngine {
     Check(indexer != null,
         "Indexer " + SearchEngine.OPTIONS._indexerType + " not found!");
     try {
-      indexer.constructIndex();
+    	if(indexer instanceof IndexerInvertedCompressed)
+    		((IndexerInvertedCompressed) indexer).constructIndex(LocationLoader.loadLocations());
     } catch (Exception e) {
       e.printStackTrace();
     }

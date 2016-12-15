@@ -39,7 +39,8 @@ public class SpatialEntityKnowledgeBase implements Serializable {
                         .append("\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [ ")
                         .append(nearby.longitude).append(", ").append(nearby.latitude).append("]}")
                         .append(", \"properties\": { \"name\": \"").append(nearby.getName())
-                        .append("\", \"type\": \"expanded\", \"population\": ").append(nearby.population).append("}}");
+                        .append("\", \"addl_terms\": \"").append(nearby.getName().toLowerCase())
+                        .append("\",\"type\": \"expanded\", \"population\": ").append(nearby.population).append("}}");
             }
             json.append("]}");
             return json.toString();
@@ -69,24 +70,30 @@ public class SpatialEntityKnowledgeBase implements Serializable {
         for (Map.Entry<Integer, GeoEntity> entry : _entity_map.entrySet()) {
             GeoEntity entity = entry.getValue();
             String key = entity.getName().toLowerCase();
-            if (_term_search_map.containsKey(key)) {
-                _term_search_map.get(key).add(entity);
+            
+            //Smaller Towns should be qualified by state as well
+            if(entity.population == null || entity.population >= 200000 ) {
+            	//System.out.println(key);
+	            if (_term_search_map.containsKey(key)) {
+	                _term_search_map.get(key).add(entity);
+	            } else {
+	                ArrayList<GeoEntity> toAdd = new ArrayList<>();
+	                toAdd.add(entity);
+	                _term_search_map.put(key, toAdd);
+	            }
             } else {
-                ArrayList<GeoEntity> toAdd = new ArrayList<>();
-                toAdd.add(entity);
-                _term_search_map.put(key, toAdd);
-            }
-
-            //System.out.println("Trying to get state for : " + key);
-            String expanded_key = key + " " + entity.getStateName();
-            expanded_key = expanded_key.toLowerCase().trim();
-
-            if (_term_search_map.containsKey(expanded_key)) {
-                _term_search_map.get(expanded_key).add(entity);
-            } else {
-                ArrayList<GeoEntity> toAdd = new ArrayList<>();
-                toAdd.add(entity);
-                _term_search_map.put(expanded_key, toAdd);
+            	
+	            //System.out.println("Trying to get state for : " + key);
+	            String expanded_key = key + " " + entity.getStateName();
+	            expanded_key = expanded_key.toLowerCase().trim();
+	
+	            if (_term_search_map.containsKey(expanded_key)) {
+	                _term_search_map.get(expanded_key).add(entity);
+	            } else {
+	                ArrayList<GeoEntity> toAdd = new ArrayList<>();
+	                toAdd.add(entity);
+	                _term_search_map.put(expanded_key, toAdd);
+	            }
             }
 
 
@@ -212,7 +219,7 @@ public class SpatialEntityKnowledgeBase implements Serializable {
                         .append(", \"properties\": { \"name\": \"").append(entity.getName()).append("\", \"state\": \"")
                         .append(entity.getStateName())
                         .append("\", \"type\": \"candidate\", \"addl_terms\": \"")
-                        .append(entity.getUniqueName())
+                        .append(entity.getUniqueName()) //entity.getUniqueName() != null? entity.getUniqueName():entity.getName()
                         .append("\", \"population\": ").append(entity.population).append("}}");
             }
             json.append("]}");

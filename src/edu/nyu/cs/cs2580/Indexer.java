@@ -35,6 +35,8 @@ public abstract class Indexer {
   // Subclasses should populate those fields properly.
   protected int _numDocs = 0;
   protected long _totalTermFrequency = 0;
+  
+  protected double _avgDocLength = 0.0;
 
   // Provided for serialization.
   public Indexer() { }

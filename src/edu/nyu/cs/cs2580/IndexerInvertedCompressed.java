@@ -21,10 +21,12 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 	private ArrayList<DocumentIndexed> _docs;
 
 	private HashMap<String, TermInfo> _dictionary; //Term to (ID, Doc Freq, Corp Freq)
+	private HashMap<Integer, Integer> _geoDocsOccurred; //GeoID => Inverse Count
 	private ArrayList<String> sortByIndex;
 
 	private Long temp_totalTermFrequency = 0L;
-
+	private double temp_avgDocLength = 0.0;
+	
 	//Sharding: Can Tune
 	private short shards = 1000;
 	private int bufferSize = 4500000; //Flush buffer after size: Tune
@@ -47,7 +49,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 			}
 		}
 	}
-
+	
 	public IndexerInvertedCompressed(Options options) {
 		super(options);
 		System.out.println("Using Indexer: " + this.getClass().getSimpleName());
@@ -97,6 +99,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 	}
 
 	//Get all files in a nested Data Structure
+	//TODO: Deal with duplicates in Titles
 	private List<File> nestedFiles(File corpusDirectory) {
 		List<File> files = new LinkedList<>();
 		for(File en : corpusDirectory.listFiles()) {
@@ -110,11 +113,15 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 	}
 
 	@Override
-	public void constructIndex() throws Exception {
+	public void constructIndex() {
+	}
+	
+	public void constructIndex(SpatialEntityKnowledgeBase gkb) throws Exception {
 		//=================================Instantiate Docs
 
 		_docs = new ArrayList<>();
 		_dictionary = new HashMap<>();
+		_geoDocsOccurred = new HashMap<>();
 		sortByIndex = new ArrayList<>();
 
 		_totalTermFrequency = 0L;
@@ -146,7 +153,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 
 		//Stemmer stemmer = new Stemmer();
 
-		//====================================Load Corpus Directory
+		//============================================================= Load Corpus Directory
 
 		File corpusDirectory = new File(_options._corpusPrefix);
 		System.out.println("Corpus Directory: " + _options._corpusPrefix);
@@ -155,34 +162,44 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 			throw new IllegalStateException("Corpus Directory must exist!");
 
 
-		//======================================= Phase 1: Estimate Posting List Size
+		//============================================================== Phase 1: Estimate Posting List Size
 
-		System.out.println("Estimation Phase");
+		System.out.println("Estimation/Geo-Ids Phase");
 
 		TermInfo currTermInfo = null;
 		HashMap<String, Integer> wordCount = null;
-
+		HashMap<Integer, Integer> geoCount = null;
+		
+		//=============================Geo List File Initiator
+		String geoListsName = _postings_list_dir + "geoIds";
+		File geoListsFile = new File(geoListsName);
+		if(!geoListsFile.exists()) {
+			System.out.println("Cleaned GeoList");
+			geoListsFile.delete();
+		}
+		geoListsFile.createNewFile();
+		
+		List<Byte> geoList = new LinkedList<Byte>();
+		//====================================================
+			
 		//Estimation
 		long bufferEst = 0;
-
+		long runningGeoSum = 0;
 		int progress = 0;
 
 		//Go through all Files in Corpus
 		for (File fileEntry : nestedFiles(corpusDirectory)) { //corpusDirectory.listFiles()) {
 			if (fileEntry.isFile()) {
-				System.out.println("Estimated : " + progress);
-				progress++;
-
-				/*if(progress % 500 == 0) {
-					System.out.println("Encouraged Garbage Collection");
-					System.gc();
-				}*/
+				//TODO: Ignore Articles with the same titles
 
 				String[] docWords = parseDocument(fileEntry);
 
 				//Skip Corrupted Files
 				if(docWords.length <= 1)
 					continue;
+				
+				System.out.println("Estimated : " + progress);
+				progress++;
 
 				//Parse/Build Document
 				int doc_id = _docs.size();
@@ -191,9 +208,15 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				temp_totalTermFrequency += docWords.length;
 
 				//TODO: actually deal with pagerank
-				_docs.add(buildDocument(fileEntry, doc_id, docWords.length, 0, 0 ));
+				DocumentIndexed currDoc = buildDocument(fileEntry, doc_id, docWords.length, 0, 0 );
+				_docs.add(currDoc);
+				temp_avgDocLength += docWords.length;
 
 				wordCount = new HashMap<>();
+				geoCount = new HashMap<>();
+				
+				//Trigram Buffer
+				LinkedList<String> trigramBuffer = new LinkedList<>();
 
 				//Update map
 				int occurrence = 0;
@@ -202,7 +225,28 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 					if(stopWords.contains(word)) {
 						continue;
 					}
-
+					
+					//============================= Update Location count
+					//Update Trigram buffer
+					trigramBuffer.add(word);
+					if(trigramBuffer.size() > 3)
+						trigramBuffer.remove();
+					
+					String term = null;
+					for(String gram : trigramBuffer) {
+						if(term == null)
+							term = gram;
+						else
+							term += " " + gram;
+						for(GeoEntity ge : gkb.getCandidates(term)) {
+							if(geoCount.containsKey(ge.getId()))
+								geoCount.put(ge.getId(), geoCount.get(ge.getId()) + 1);
+							else
+								geoCount.put(ge.getId(), 1);
+						}
+					}
+					//==============================================
+					
 					//Stem
 					//stemmer.add(word.toCharArray(),word.length());
 					//stemmer.stem();
@@ -233,6 +277,47 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 						wordCount.put(word, wordCount.get(word) + 1);
 					}
 				}
+				
+				//================================== Update Folder
+				currDoc.startingBit = runningGeoSum;
+				currDoc.endingBit = runningGeoSum;
+				
+				Iterator<Entry<Integer, Integer>> iter = geoCount.entrySet().iterator();
+				while(iter.hasNext()) {
+					if(iter.next().getValue() < 3) //Don't really consider any locations that occurred less than 3 times
+						iter.remove();
+				}
+				
+				for(Entry<Integer, Integer> gc: geoCount.entrySet()) {
+					//If it's state does not also exist in the document, skip
+					GeoEntity ge = gkb.getDefinedLocation(gc.getKey());
+
+					if((ge.type.equals("CITY") &&  !geoCount.containsKey(ge.parent.parent.getId())) ||
+							(ge.type.equals("COUNTY") && !geoCount.containsKey(ge.parent.getId())))
+						continue;
+					
+					//Update VByte Encoded List
+					updateVbyteEncode( geoList, gc.getKey());
+					updateVbyteEncode( geoList, gc.getValue());
+					
+					//Update ScoredDoc
+					long estimate = vbyteEstimate(gc.getKey()) + vbyteEstimate(gc.getValue());
+					currDoc.endingBit += estimate;
+					runningGeoSum += estimate;
+					
+					//Update Global Count
+					if(_geoDocsOccurred.containsKey(gc.getKey())) {
+						_geoDocsOccurred.put(gc.getKey(), _geoDocsOccurred.get(gc.getKey()) + gc.getValue());
+					} else {
+						_geoDocsOccurred.put(gc.getKey(), gc.getValue());
+					}
+				}
+				
+				//Flush after 1000 documents
+				if(progress % 3000 == 0 && progress > 0) {
+					flushGeoList(geoList, geoListsName);
+				}
+				//==================================================
 
 				//Update all the counts
 				for(String word: wordCount.keySet()) {
@@ -243,7 +328,12 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 				}
 			}
 		}
-
+		
+		//Flush Remaining
+		flushGeoList(geoList, geoListsName);
+		
+		//System.out.println(_geoDocsOccurred.size());
+		
 		//======================================================== Phase 2: Build Files and Shard + Get Boundaries for Both Lists
 
 		System.out.println("Sorting Phase");
@@ -388,7 +478,8 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		//TESTING: Load Index
 		//_posting_cache = new HashMap<>();
 		//System.out.println(_dictionary.get("the").docFreq);
-
+		//System.out.println(geoDocCount(4942618));
+		
 		//Bench-mark
 		//System.out.println(documentTermFrequency("hello world", 2));
 		//System.out.println(corpusDocFrequencyByTerm("java sings hello world please"));
@@ -410,11 +501,15 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		writer.close();
 	}
 
-	//Parse the Document Nicely
+	//Parse the Document Specifically from Wikipedia
 	private String[] parseDocument(File doc) throws Exception {
 		Elements title = Jsoup.parse(doc, "UTF-8").select("title");
 		Elements paragraphs = Jsoup.parse(doc, "UTF-8").select("p");
-		String docText = cleanDocument(title.text()) + " " + cleanDocument(paragraphs.text());
+		Elements infobox = Jsoup.parse(doc, "UTF-8").select(".infobox");
+		
+		String docText = cleanDocument(title.text()) + " " 
+							+ cleanDocument(infobox.text()) + " " 
+							+ cleanDocument(paragraphs.text());
 
 		return docText.split("\\s+");
 	}
@@ -437,7 +532,7 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 	}
 
 	private String cleanDocument(String document_body) {
-		return document_body.replaceAll("[^A-Za-z0-9\\s]", "").toLowerCase();
+		return document_body.replaceAll("[^A-Za-z0-9\\s]", " ").toLowerCase();
 	}
 
 	//Focus on flush contents
@@ -474,6 +569,26 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		//Clean Buffer
 		buffer.clear();
 		System.out.println("Flushed");
+	}
+	
+	//Focus on flush contents
+	private void flushGeoList(List<Byte> buffer, String fileName) throws IOException {
+		System.out.println("Start Flushing GeoList");
+		File geoListFile = new File(fileName);
+	    long lastByte = geoListFile.length();
+		RandomAccessFile raIndFile = new RandomAccessFile(geoListFile, "rw");
+
+		for(Byte toWrite: buffer) {
+			raIndFile.seek(lastByte);
+			raIndFile.writeByte(toWrite);
+			lastByte++;
+		}
+
+		raIndFile.close();
+
+		//Clean Buffer
+		buffer.clear();
+		System.out.println("Flushed GeoList");
 	}
 
 	//Individual Term load
@@ -562,9 +677,15 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		this._dictionary = loaded._dictionary;
 		this.sortByIndex = loaded.sortByIndex;
 		this._numDocs = _docs.size();
+		
+		//Load Geo Doc Count
+		this._geoDocsOccurred = loaded._geoDocsOccurred;
 
 		//Non-unique word count
 		this._totalTermFrequency = loaded.temp_totalTermFrequency;
+		
+		//Avg Doc Length
+		this._avgDocLength = loaded.temp_avgDocLength / _numDocs;
 
 		System.out.println(Integer.toString(_docs.size()) + " documents loaded " +
 				"with " + Long.toString(_dictionary.size()) + " terms!");
@@ -925,5 +1046,60 @@ public class IndexerInvertedCompressed extends Indexer implements Serializable {
 		}
 
 		return count;
+	}
+	
+	//================================================= Experimental Suggestion Engine
+	public HashMap<Integer, Integer> geoCounts(Integer docId) {
+		try {
+			//Get doc
+			DocumentIndexed doc = (DocumentIndexed) getDoc(docId);
+			
+			//Load values from posting list and parse into hashmap
+			RandomAccessFile raf = new RandomAccessFile(_postings_list_dir + "geoIds", "r");
+	
+			int counter = 0;
+			Byte vbyte;
+			boolean controlBit;
+			int buffer = 0;
+			short shift = 0;
+			
+			HashMap<Integer, Integer> counts = new HashMap<>();
+			Integer geoID = -1;
+	
+			//Decode
+			for(long pos = doc.startingBit; pos < doc.endingBit; pos++) {
+				raf.seek(pos);
+				vbyte = raf.readByte();
+				controlBit = ((vbyte >> 7) & 1) > 0;
+				//zero out control bit
+				vbyte = (byte) (vbyte & 0x7F);
+				buffer = (buffer << shift) + vbyte;
+				if(controlBit) {//Last bit is set so last
+	
+					//Add Skip Pointer
+					if(counter == 0) {
+						geoID = buffer;
+						counter = 1; //Next Number is the count
+					} else {
+						counts.put(geoID, buffer);
+						counter = 0;
+					}
+	
+					buffer = 0;
+					shift = 0;
+				} else {
+					shift = 7;
+				}
+			}
+			raf.close();
+			return counts;
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public Integer geoDocCount(Integer geoId) {
+		return _geoDocsOccurred.get(geoId);
 	}
 }

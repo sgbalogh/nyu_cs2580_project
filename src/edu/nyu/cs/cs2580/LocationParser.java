@@ -20,10 +20,10 @@ public class LocationParser {
 		_gkb = gkb;
 	}
 
-	public QueryBoolGeo parseQuery(String givenQuery, int geoID, String uname){
+	public QueryBoolGeo parseQuery(String givenQuery, String geoIDs, String uname){
 
 		if(true)
-			return langModel(givenQuery, geoID, uname);
+			return langModel(givenQuery, geoIDs, uname);
 
 		listOfCandidateLocation.clear();
 		toReturn = new QueryBoolGeo(givenQuery);
@@ -171,7 +171,7 @@ public class LocationParser {
 		}*/
 
 
-		if(geoID>=0){
+		if(geoIDs != null){
 			List<GeoEntity> location_terms = new ArrayList<>();
 			List<String> non_location_terms = new ArrayList<>();
 			for(Map.Entry<String,Integer> entry: listOfCandidateLocation.entrySet()){
@@ -185,8 +185,9 @@ public class LocationParser {
 			toReturn.setSupportingTokens(non_location_terms);
 			toReturn.populateGeoEntities(location_terms);
 
-
-			toReturn.get_candidate_geo_entities().add(_gkb.getDefinedLocation(geoID));
+			for(String geoID: geoIDs.split(",")) {
+				toReturn.get_candidate_geo_entities().add(_gkb.getDefinedLocation(Integer.parseInt(geoID)));
+			}
 			for(String location_term: uname.split(",")){
 				toReturn._tokens.add(location_term);
 			}
@@ -415,7 +416,7 @@ public class LocationParser {
 	//===========================Language Model========================================
 
 	//Logistic Regression Test
-	private QueryBoolGeo langModel(String givenQuery, int geoID, String uname) {
+	private QueryBoolGeo langModel(String givenQuery, String geoIDs, String uname) {
 		//Populate Stop words
 		HashSet<String> stopWords = new HashSet<>(Arrays.asList(new String[]{
 				"a", "an", "and", "are","as","at","be","by",
@@ -495,15 +496,18 @@ public class LocationParser {
 
 			//Check for Locations
 			QueryBoolGeo toReturn = new QueryBoolGeo(givenQuery);
-			boolean placeDefined = (geoID >= 0? true: false);
+			boolean placeDefined = (geoIDs != null? true: false);
 
 			if (placeDefined) {
-				toReturn.get_candidate_geo_entities().add(_gkb.getDefinedLocation(geoID));
+				for(String geoId: geoIDs.split(",")) {
+					toReturn.get_candidate_geo_entities().add(_gkb.getDefinedLocation(Integer.parseInt(geoId)));
+				}
 			}
 
 			for(String term : segmentedTerms) {
 				List<GeoEntity> cands = _gkb.getCandidates(term);
 				if(placeDefined || cands.isEmpty()) {
+					System.out.println("Supporting: " + term);
 					toReturn.getSupportingTokens().add(term);
 				} else {
 					System.out.println("Location: " + term);

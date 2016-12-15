@@ -37,7 +37,7 @@ class ScoredDocument implements Comparable<ScoredDocument> {
     buf.append("<tr>");
     //buf.append("<td>").append(_query).append("</td>");
     buf.append("<td><code>").append(_doc._docid).append("</code></td>");
-    buf.append("<td><a href=\"").append(_doc.getUrl()).append("\">").append(_doc.getTitle()).append("</a></td>");
+    buf.append("<td><a href=\"").append(_doc.getUrl().replace("_wiki_", "")).append("\">").append(_doc.getTitle()).append("</a></td>");
     buf.append("<td>").append(_score).append("</td>");
     //buf.append("<td>").append(_doc.getNumViews()).append("</td>");
     buf.append("<td>").append(_doc.getPageRank()).append("</td>");
@@ -55,6 +55,10 @@ class ScoredDocument implements Comparable<ScoredDocument> {
 
   public double getScore() {
 	return _score;
+  }
+  
+  public void setScore(double score) {
+	_score = score;
   }
   
   public Document getDoc() {
