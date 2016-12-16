@@ -28,7 +28,16 @@ public class LocationParser {
 		listOfCandidateLocation.clear();
 		toReturn = new QueryBoolGeo(givenQuery);
 		//System.out.println(givenQuery);
-		List<String> tokens = removeStopWords(givenQuery);
+		List<String> tokens = new ArrayList<>();
+		if(givenQuery.contains("\"")){
+			tokens = removeStopWords(givenQuery);
+		}
+		else{
+			String[] tok =  givenQuery.split("\\s+");
+			for(int i=0; i< tok.length; i++){
+				tokens.add(tok[i]);
+			}
+		}
 		if(tokens.size()==0){
 			//do nothing
 			System.out.println("in if");
@@ -37,139 +46,134 @@ public class LocationParser {
 			//toReturn._tokens = new Vector<String>(tokens);
 			System.out.println("in else");
 
-
-
-		//String[] tokens = givenQuery.split("\\s+");
-		int length = tokens.size();
-		int[] id = new int[length];
-		for(int i=0; i<length; i++){
-			id[i]=i;
-		}
-
-		//System.out.println("total term frequency: "+_indexer.totalTermFrequency());
-
-		String currentStringTested="";
-		String currentStringTested2="";
-		int freq1=0;
-		int freq2=0;
-		int[] spaces = new int[length-1];
-
-
-		int currentLengthOfCnadidate = 2;
-		for(int i=0; i< (length - currentLengthOfCnadidate ); i++){
-			currentStringTested = tokens.get(i) + " " + tokens.get(i+1);
-			currentStringTested2 = tokens.get(i+1) +" "+ tokens.get(i+2);
-			freq1 = _indexer.corpusTermFrequency(currentStringTested);
-			freq2 = _indexer.corpusTermFrequency(currentStringTested2);
-			//System.out.println( currentStringTested+ " "+currentStringTested2 +  " " + freq1 + " " + freq2);
-			if(freq1 < freq2){
-
-				spaces[i] += 1;
+			//String[] tokens = givenQuery.split("\\s+");
+			int length = tokens.size();
+			int[] id = new int[length];
+			for(int i=0; i<length; i++){
+				id[i]=i;
 			}
-			else if(freq1 > freq2) {
+			System.out.println("total term");
+			//System.out.println("total term frequency: "+_indexer.totalTermFrequency());
 
-				spaces[i + 1] += 1;
-			}
-			else{
-				spaces[i] += 1;
-				spaces[i+1] += 1;
-			}
-		}
-
-		currentLengthOfCnadidate = 3;
-		//System.out.println("size: "+ listOfCandidateLocation.size());
+			String currentStringTested="";
+			String currentStringTested2="";
+			int freq1=0;
+			int freq2=0;
+			int[] spaces = new int[length-1];
 
 
+			int currentLengthOfCnadidate = 2;
+			for(int i=0; i< (length - currentLengthOfCnadidate ); i++){
+				currentStringTested = tokens.get(i) + " " + tokens.get(i+1);
+				currentStringTested2 = tokens.get(i+1) +" "+ tokens.get(i+2);
+				freq1 = _indexer.corpusTermFrequency(currentStringTested);
+				freq2 = _indexer.corpusTermFrequency(currentStringTested2);
+				//System.out.println( currentStringTested+ " "+currentStringTested2 +  " " + freq1 + " " + freq2);
+				if(freq1 < freq2){
 
-		if(length == 1){
-			listOfCandidateLocation.put(tokens.get(0),0);
-		}
-		else if(length == 2){
-			int fre1 = _indexer.corpusTermFrequency(tokens.get(0));
-			int fre2 = _indexer.corpusTermFrequency(tokens.get(1));
-			int fre3 = _indexer.corpusTermFrequency(tokens.get(0) + tokens.get(1));
-			if(fre3>0 && (double)fre3/(_indexer.totalTermFrequency()) >= 0.00000029){
-				listOfCandidateLocation.put(tokens.get(0) +" " + tokens.get(1),1);
-			}
-			else{
-				listOfCandidateLocation.put(tokens.get(0),0);
-				listOfCandidateLocation.put(tokens.get(1),1);
-			}
-		}
-
-		else if(length == 3){
-			int freqWhole = _indexer.corpusTermFrequency(tokens.get(0) + " " + tokens.get(1) + " "+ tokens.get(2));
-			//System.out.println(tokens.get(0) + " " + tokens.get(1) + " "+ tokens.get(2) + " " + freqWhole);
-			int fre3= _indexer.corpusTermFrequency(tokens.get(0) + " "+ tokens.get(1));
-			int fre4= _indexer.corpusTermFrequency(tokens.get(1) + " "+ tokens.get(2));
-			//System.out.println("here: "+   (double)freqWhole/(_indexer.totalTermFrequency() ));
-			if(freqWhole>0 && ((double)freqWhole/(_indexer.totalTermFrequency()) > 0.00000029)){
-				//System.out.println("A..");
-				listOfCandidateLocation.put(tokens.get(0) + " " + tokens.get(1) + " "+ tokens.get(2),2);
-			}
-			else if(fre3 > fre4){
-				//System.out.println("B..");
-				listOfCandidateLocation.put(tokens.get(0) + " "+ tokens.get(1),1);
-				listOfCandidateLocation.put(tokens.get(2),2);
-			}
-			else if (fre3 < fre4){
-				//System.out.println("C..");
-				listOfCandidateLocation.put(tokens.get(0),0);
-				listOfCandidateLocation.put(tokens.get(1) + " " +tokens.get(2),2);
-			}
-			else if(fre3 == fre4) {
-				//System.out.println("D..");
-				listOfCandidateLocation.put(tokens.get(0),0);
-				listOfCandidateLocation.put(tokens.get(1),1);
-				listOfCandidateLocation.put(tokens.get(2),2);
-			}
-
-		}
-
-		else {
-
-			int fr = _indexer.corpusTermFrequency(givenQuery);
-			//System.out.println("fr: "+fr);
-			//System.out.println("here again : "+   (double)fr/(_indexer.totalTermFrequency() ));
-			if (fr > 0 && ((double)fr / (_indexer.totalTermFrequency()) >= 0.00000029)) {
-				listOfCandidateLocation.put(givenQuery, length - 1);
-			} else {
-
-
-				int flag = 0;
-				String pendingToken = tokens.get(0);
-				int pendingLastId = 0;
-				for (int i = 0; i < (length - 1); i++) {
-					if (spaces[i] == 0) {
-						pendingToken += " " + tokens.get(i + 1);
-						pendingLastId = id[i + 1];
-						if (i == length - 2) {
-							flag = 1;
-						}
-					} else {
-						listOfCandidateLocation.put(pendingToken, pendingLastId);
-						//System.out.println("sizeD: " + listOfCandidateLocation.size());
-
-						pendingToken = tokens.get(i + 1);
-						pendingLastId = id[i + 1];
-
-						//flag=1;
-					}
+					spaces[i] += 1;
 				}
-				//if(flag==1){
-				//	pendingToken = pendingToken + " " + tokens[length-1];
-				//}
-				//else{
-				//	pendingToken=tokens[length - 1];
-				//}
+				else if(freq1 > freq2) {
 
-				listOfCandidateLocation.put(pendingToken, pendingLastId);
-				//System.out.println("sizeC: " + listOfCandidateLocation.size());
+					spaces[i + 1] += 1;
+				}
+				else{
+					spaces[i] += 1;
+					spaces[i+1] += 1;
+				}
 			}
-		}
+
+			currentLengthOfCnadidate = 3;
+			//System.out.println("size: "+ listOfCandidateLocation.size());
+
+			if(length == 1){
+				listOfCandidateLocation.put(tokens.get(0),0);
+			}
+			else if(length == 2){
+				int fre1 = _indexer.corpusTermFrequency(tokens.get(0));
+				int fre2 = _indexer.corpusTermFrequency(tokens.get(1));
+				int fre3 = _indexer.corpusTermFrequency(tokens.get(0) + tokens.get(1));
+				if(fre3>0 && (double)fre3/(_indexer.totalTermFrequency()) >= 0.00000029){
+					listOfCandidateLocation.put(tokens.get(0) +" " + tokens.get(1),1);
+				}
+				else{
+					listOfCandidateLocation.put(tokens.get(0),0);
+					listOfCandidateLocation.put(tokens.get(1),1);
+				}
+			}
+
+			else if(length == 3){
+
+				int freqWhole = _indexer.corpusTermFrequency(tokens.get(0) + " " + tokens.get(1) + " "+ tokens.get(2));
+				//System.out.println(tokens.get(0) + " " + tokens.get(1) + " "+ tokens.get(2) + " " + freqWhole);
+				int fre3= _indexer.corpusTermFrequency(tokens.get(0) + " "+ tokens.get(1));
+				int fre4= _indexer.corpusTermFrequency(tokens.get(1) + " "+ tokens.get(2));
+				//System.out.println("here: "+   (double)freqWhole/(_indexer.totalTermFrequency() ));
+				if(freqWhole>0 && ((double)freqWhole/(_indexer.totalTermFrequency()) > 0.00000029)){
+					//System.out.println("A..");
+					listOfCandidateLocation.put(tokens.get(0) + " " + tokens.get(1) + " "+ tokens.get(2),2);
+				}
+				else if(fre3 > fre4){
+					//System.out.println("B..");
+					listOfCandidateLocation.put(tokens.get(0) + " "+ tokens.get(1),1);
+					listOfCandidateLocation.put(tokens.get(2),2);
+				}
+				else if (fre3 < fre4){
+					//System.out.println("C..");
+					listOfCandidateLocation.put(tokens.get(0),0);
+					listOfCandidateLocation.put(tokens.get(1) + " " +tokens.get(2),2);
+				}
+				else if(fre3 == fre4) {
+					//System.out.println("D..");
+					listOfCandidateLocation.put(tokens.get(0),0);
+					listOfCandidateLocation.put(tokens.get(1),1);
+					listOfCandidateLocation.put(tokens.get(2),2);
+				}
+
+			}
+
+			else {
+
+				int fr = _indexer.corpusTermFrequency(givenQuery);
+				//System.out.println("fr: "+fr);
+				//System.out.println("here again : "+   (double)fr/(_indexer.totalTermFrequency() ));
+				if (fr > 0 && ((double)fr / (_indexer.totalTermFrequency()) >= 0.00000029)) {
+					listOfCandidateLocation.put(givenQuery, length - 1);
+				} else {
 
 
-		//System.out.println("size: "+ listOfCandidateLocation.size());
+					int flag = 0;
+					String pendingToken = tokens.get(0);
+					int pendingLastId = 0;
+					for (int i = 0; i < (length - 1); i++) {
+						if (spaces[i] == 0) {
+							pendingToken += " " + tokens.get(i + 1);
+							pendingLastId = id[i + 1];
+							if (i == length - 2) {
+								flag = 1;
+							}
+						} else {
+							listOfCandidateLocation.put(pendingToken, pendingLastId);
+							//System.out.println("sizeD: " + listOfCandidateLocation.size());
+
+							pendingToken = tokens.get(i + 1);
+							pendingLastId = id[i + 1];
+
+							//flag=1;
+						}
+					}
+					//if(flag==1){
+					//	pendingToken = pendingToken + " " + tokens[length-1];
+					//}
+					//else{
+					//	pendingToken=tokens[length - 1];
+					//}
+
+					listOfCandidateLocation.put(pendingToken, pendingLastId);
+					//System.out.println("sizeC: " + listOfCandidateLocation.size());
+				}
+			}
+			//System.out.println("size: "+ listOfCandidateLocation.size());
 		/*for(Map.Entry<String,Integer> entry: listOfCandidateLocation.entrySet()){
 			System.out.println("string: "+ entry.getKey()+" pendingId: "+entry.getValue());
 		}*/
@@ -186,17 +190,22 @@ public class LocationParser {
 				}
 
 			}
+
 			toReturn.setSupportingTokens(non_location_terms);
 			toReturn.populateGeoEntities(location_terms);
 
 			for(String geoID: geoIDs.split(",")) {
 				toReturn.get_candidate_geo_entities().add(_gkb.getDefinedLocation(Integer.parseInt(geoID)));
 			}
-			for(String location_term: uname.split(",")){
-				toReturn._tokens.add(location_term);
+
+			if(uname != null) {
+				for(String location_term: uname.split(",")){
+					System.out.println(location_term);
+					toReturn._tokens.add(location_term);
+				}
 			}
 
-			return toReturn;
+			return forEachSegments();
 		}
 		else {
 			return forEachSegments();
@@ -339,13 +348,13 @@ public class LocationParser {
 
 		toReturn.setSupportingTokens(non_location_terms);
 		toReturn.populateGeoEntities(location_terms);
-		
-		
+
+
 		for(Map.Entry<String, Integer> entry:  listOfCandidateLocation.entrySet()){
 			toReturn._tokens.add(entry.getKey());
 		}
-		
-		
+
+
 		//location_terms_string.clear();
 		//non_location_terms.clear();
 		listOfCandidateLocation.clear();
@@ -439,8 +448,10 @@ public class LocationParser {
 		//Populate Stop words
 		HashSet<String> stopWords = new HashSet<>(Arrays.asList(new String[]{
 				"a", "an", "and", "are","as","at","be","by",
-				"for","from","has","he","in","is","it","its",
-				"of","on","that","the","to","was","were","will","with"}));
+				"for","from","has","he","how","in","is","it","its","many","must",
+				"of","or","on","she","that","the","to","was","were","what","when","where","which","will","with"}));
+
+		Stemmer stemmer = new Stemmer();
 
 		givenQuery = givenQuery.toLowerCase();
 		int k = 3; //Max N-Gram Size
@@ -459,6 +470,11 @@ public class LocationParser {
 					//Do not include standard stop words if not phrase
 					continue;
 				}
+
+				//Stem
+				//stemmer.add(token.toCharArray(),token.length());
+				//stemmer.stem();
+				//token = stemmer.toString();
 
 				if(token.length() > 0)
 					seperatedTerms.add(token);
@@ -526,10 +542,10 @@ public class LocationParser {
 			for(String term : segmentedTerms) {
 				List<GeoEntity> cands = _gkb.getCandidates(term);
 				if(placeDefined || cands.isEmpty()) {
-					System.out.println("Supporting: " + term);
+					//System.out.println("Supporting: " + term);
 					toReturn.getSupportingTokens().add(term);
 				} else {
-					System.out.println("Location: " + term);
+					//System.out.println("Location: " + term);
 					toReturn.populateGeoEntities(cands);
 				}
 				toReturn._tokens.add(term);
