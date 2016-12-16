@@ -2,7 +2,7 @@ README - Group 05
 
 To compile on CIMS machines:
   > module load java-1.8
-  > cd group05_hw3/
+  > cd group05_project/
   > javac -cp jsoup-1.10.1.jar  src/edu/nyu/cs/cs2580/*.java
 
 To index:
