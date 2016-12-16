@@ -5,31 +5,35 @@ To compile on CIMS machines:
   > cd group05_hw3/
   > javac -cp jsoup-1.10.1.jar  src/edu/nyu/cs/cs2580/*.java
 
-To mine:
-  > java -cp  jsoup-1.10.1.jar:src edu.nyu.cs.cs2580.SearchEngine --mode=mining --options=conf/engine.conf
-  ## Mining mode stores two serialized objects to ./data/index
-  ## It also stores text file representations of PageRank and NumViews scores
-
 To index:
   > java -cp  jsoup-1.10.1.jar:src edu.nyu.cs.cs2580.SearchEngine --mode=index --options=conf/engine.conf
 
 To serve:
   > java -cp  jsoup-1.10.1.jar:src edu.nyu.cs.cs2580.SearchEngine --mode=serve --port=25805 --options=conf/engine.conf
 
-To compute Spearman correllation:
-  > cd group05_hw3/
-  > java -cp src edu.nyu.cs.cs2580.Spearman data/index/wiki_pagerank.txt data/index/wiki_numviews.txt
-  ## Our Spearman value is: 0.4109313301720696
+NOTES:
 
-To compute Bhattacharyya coefficients
-  > cd group05_hw3/
-  > vim queries.tsv ## Place queries in this file, one per line
-  > bash Hw3Driver.sh ## We provide a script to iterate through queries and produce prf-*.tsv and qsim.tsv files_nice
+1) Geospatial seed data is located in data/geospatial –– this includes:
+  - US county-level information : 'admin2_data_usa.csv'
+  - US state / global "admin1" region data : 'admin1_data.csv'
+  - US city (with population ≥ 1000) data : 'cities1000_usa_3857.csv'
+  - A serialized graph between cities and the ≤ 20 nearby cities within a 50km buffer : 'nearest_neighbors_50km.csv'
+2) Geospatial data is assembled from the CSV files above by the LocationLoader class, which is run
+  by the SearchEngine on --serve mode
 
+Making use of geospatial expansion:
+a) Given a query with an explicit location term (e.g. "california silicon valley"), the ranker collects documents
+and evaluates whether or not to present alternate/expanded locations that have better results for the query
+(e.g. "san francisco silicon valley", "san jose silicon valley", etc)
+  - if the query issued by the user is deemed to be optimal, with respect to locations, then no map widget will
+  appear, and we assume that the user is uninterested in seeing potential sites for geospatial expansion
 
-Justification of lambda values for PageRank:
-The �damping factor� lambda is a tricky entity that may make the resulting pagerank values to behave differently. 
-For eg. with lambda being as low as 0.1, the pagerank values may get repeatedly over-shot, with high frequencies below and above the average ,
- i.e. the numbers swing about the average like a pendulum. With high damping factor like 0.9, rather the numbers may take longer to settle. 
- However, the numbers won�t undergo such drastic ups and downs across the average values. Also, the number of iterations eventually ensure the normalization of the pagerank values.
-  So two iterations could be preferred over one iteration, with a higher damping-factor of 0.9, which is analogous to choosing the better of the two extreme values of 0.1 and 0.9.
+b) If a query contains a location that is ambiguous (e.g. "mercer county education"), and it is not possible
+for the search engine to make a reasonable decision with regards to disambiguating the location term, then
+a user will be asked to manually disambiguate between candidate locations by clicking one of a set of points
+presented to them on a map
+
+c) For all queries with strong associations with locations (as determined by the indexer), we present at the footer
+of the results HTML page a list of most probable locations –– this data can be used to correct queries that have
+incorrect spatial terms; it also suggests new exploratory queries
+  - e.g., "space needle" will suggest the location "seattle"; "surfing" will suggest various coastal locations
